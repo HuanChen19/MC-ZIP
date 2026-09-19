@@ -1,0 +1,2 @@
+# MC-ZIP
+MC Addon打包工具,一键打包成ZIP\MCADDON\MCPACK
