@@ -1,0 +1,21 @@
+# 构建中间产物与隔离环境
+.build/
+dist/
+*.spec
+
+# 运行时生成的配置（含本地路径记录，不应提交）
+config.json
+
+# Python 缓存
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 编辑器 / 系统
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+desktop.ini
