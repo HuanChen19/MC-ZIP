@@ -43,7 +43,23 @@ python addon_packer.py
 
 或双击 `启动(源码运行).bat`（需要 Python 3.8+，且安装时勾选了 tkinter）。
 
-### 方式 3：自己重新打包 exe
+### 方式 3：Ore UI 网页界面版
+
+同一套核心逻辑，配 Minecraft Ore UI 风格界面（亮色 / 暗色 / 跟随系统三态主题）：
+
+```bat
+python mczip_web.py
+```
+
+或双击 `启动(网页界面).bat`；也可把 Addon 文件夹拖到该 bat 上。
+
+- 界面跑在本机 `127.0.0.1` 的临时端口上，用 Edge 应用窗口承载（零第三方依赖）
+- 文件操作、版本号、UUID、打包全部由 Python 核心完成，与桌面版行为一致
+- 想要原生 WebView2 窗口：`pip install pywebview` 后加 `--pywebview`
+- 只起服务不开窗口（调试用）：`--no-window`，会打印界面地址
+- 打包成 exe：双击 `build_exe_web.bat`，产物在 `dist-web\MC-ZIP.exe`
+
+### 方式 4：自己重新打包 exe（tkinter 版）
 
 双击 `build_exe.bat`，产物在 `dist\MC-ZIP.exe`。
 脚本会自动创建隔离虚拟环境 `.build\vpy` 并安装 PyInstaller，不会污染系统 Python。
@@ -150,11 +166,33 @@ UUID 格式可选：带横线（标准，推荐）或 32 位无横线。
 | --- | --- | --- |
 | `.mcaddon` | 一份 Addon 含多个包（BP + RP 等） | 各子包以**文件夹**并列放在压缩包根部 |
 | `.mcpack` | 单个包 | 包内容直接位于压缩包根部，`manifest.json` 在根 |
-| `.zip` | 只想打包一份目录快照 | 保留 Addon 文件夹名作为顶层目录 |
+| `.zip` | 只想打包一份目录快照 | 不套外层目录：单包时内容直接在根，多包时各包文件夹并列 |
 
 > `.mcaddon` 采用「子包各自成文件夹」的结构，是为了避免 BP 与 RP 的
 > `manifest.json`、`pack_icon.png` 在压缩包根部互相覆盖。
 > Minecraft 导入时会递归查找所有 `manifest.json`，这种结构可正常识别。
+
+`.zip` 与 `.mcaddon` 的区别只有一点：**`.zip` 不保留 Addon 根目录名**。
+也就是说，选中 `MyAddon_BP`、`MyAddon_RP` 这两个文件夹打包时：
+
+```
+MyAddon_v1.3.0.zip          MyAddon_v1.3.0.mcaddon
+├── MyAddon_BP/             ├── MyAddon_BP/
+│   ├── manifest.json       │   ├── manifest.json
+│   └── ...                 │   └── ...
+└── MyAddon_RP/             └── MyAddon_RP/
+    └── ...                     └── ...
+```
+
+而只选**一个**包目录打包成 `.zip` 时，包内容会直接铺在压缩包根部，
+连包文件夹那一层也不会有（适合单包分发）：
+
+```
+MyAddon_BP_v0.0.1.zip
+├── manifest.json
+├── pack_icon.png
+└── ...
+```
 
 文件名形如 `MyAddon_v1.3.0.mcaddon`，版本号取各包中的最高版本。
 
@@ -184,34 +222,78 @@ UUID 格式可选：带横线（标准，推荐）或 32 位无横线。
 
 ```
 MC-ZIP\
-├── addon_packer.py         GUI 主程序（入口）
+├── addon_packer.py         GUI 主程序（tkinter 版入口）
+├── mczip_web.py            Ore UI 网页界面版入口（HTTP 服务 + Edge 应用窗口）
 ├── addon_core.py           核心逻辑：扫描 / 版本号 / UUID / 打包
 ├── addon_config.py         配置持久化：最近打开的项目、选项偏好
+├── frontend\               Ore UI 前端（HTML / CSS / JS + 资源包原贴图）
+│   ├── index.html          界面结构：①导入 ②包列表 ③操作 ④日志
+│   ├── css\oreui.css       Ore UI 设计系统（贴图九宫格 + 双主题变量）
+│   ├── css\app.css         应用布局与组件样式
+│   ├── js\core.js          addon_core.py 的浏览器移植版（可被 Node 引做自测）
+│   ├── js\oreui.js         主题管理与通用组件（开关/下拉/弹窗/提示/滚动条）
+│   ├── js\app.js           主逻辑（后端探测、包列表、打包、日志）
+│   └── assets\             两个资源包的原贴图 + Silkscreen 字体 + logo
 ├── app.ico                 应用图标（多尺寸，16~256）
 ├── config.json             运行后自动生成（配置，可删）
 ├── README.md               本文件
 ├── LICENSE                 MIT
-├── build_exe.bat           一键打包 exe
-├── 启动(源码运行).bat        免打包直接运行
+├── build_exe.bat           打包 tkinter 版 exe
+├── build_exe_web.bat       打包网页界面版 exe
+├── 启动(源码运行).bat        tkinter 版免打包运行
+├── 启动(网页界面).bat        Ore UI 网页界面版免打包运行
 ├── docs\
-│   └── logo.png            透明底 logo，用于 README 展示
+│   └── logo.png            透明底 logo，用于 README 与网页界面
 ├── dev\                    开发辅助脚本（普通使用可忽略）
 │   ├── selftest.py         核心逻辑自测（含 BP/RP 过滤、配置持久化等断言）
 │   ├── smoketest_gui.py    GUI 端到端冒烟测试
 │   ├── verify_exe.ps1      验证构建出的 exe 能否正常启动
 │   ├── decode_image.ps1    把任意图片解码为裸像素（图标生成的辅助步骤）
 │   └── make_logo.py        由图片生成 app.ico 与 docs/logo.png
-├── dist\                   打包产物目录（MC-ZIP.exe）
+├── dist\                   打包产物目录（tkinter 版 exe）
+├── dist-web\               打包产物目录（网页界面版 exe）
 └── .build\                 构建用隔离虚拟环境与测试数据（可整个删掉，不影响 exe）
 ```
 
 ---
 
-## 七、开发辅助
+## 七、界面二次开发
+
+网页界面的视觉规范来自两个 Minecraft Java 版资源包，**贴图原样使用、未做重绘**：
+
+| 主题 | 资源包 |
+| --- | --- |
+| 亮色 | `OreUI Expanded`（by DiamondIsntHere） |
+| 暗色 | `Dark OreUI Recreation v2.5.2`（by bitznotmikel & tmc249） |
+
+关键做法：
+
+- 每个组件的九宫格参数取自贴图同名 `.mcmeta` 的 `gui.scaling.nine_slice.border`，
+  映射到 CSS `border-image-slice`（顺序 T R B L，并加 `fill`），`border-width` 取 `2 × border`
+  （渲染比例 2×，配 `image-rendering: pixelated`）
+- 切换主题只改 `<html data-theme="light|dark">`，所有贴图与配色由 CSS 变量组切换
+- 暗色包自带 `shaders/core/text.fsh`，会把 GUI 文字灰 `#3F3F3F` 档替换为白色，
+  网页版沿用该规则（亮色标签用 `#3F3F3F`，暗色用 `#FFFFFF`）
+- 资源包不含字体文件，故内置 OFL 许可的 Silkscreen 像素字体；中文回退系统黑体
+
+前端可独立在浏览器打开调试：
+
+```bat
+:: 演示模式（内置内存虚拟 Addon，无需任何授权）
+start frontend\index.html?demo=1
+```
+
+> 直接以 `file://` 打开时，浏览器不支持 File System Access API，界面会退化为「演示模式可用、
+> 真实读写不可用」；正式使用请通过 `mczip_web.py` 或 `启动(网页界面).bat` 启动。
+
+---
+
+## 八、开发辅助
 
 ```bat
 python dev\selftest.py                                    :: 核心逻辑自测
 python dev\smoketest_gui.py                               :: GUI 端到端测试（会真实创建窗口）
+python mczip_web.py --selftest                            :: 网页界面版后端自测（无窗口）
 powershell -ExecutionPolicy Bypass -File dev\verify_exe.ps1   :: 验证 exe 能否启动
 ```
 
@@ -258,6 +340,14 @@ print(cfg.recent_folders)
 
 ## 八、常见问题
 
+**Q：网页界面版打开后一片空白 / 只有标题栏？**
+请确认是通过 `启动(网页界面).bat` 或 `python mczip_web.py` 启动（走本地 HTTP 服务）。
+若直接双击 `frontend\index.html` 用 `file://` 打开，浏览器会拦截本地文件读写，
+界面会停在「未导入」状态——请改用上述启动方式。
+
+**Q：网页界面版选择文件夹时弹的是不是浏览器自带的对话框？**
+是系统原生「选择文件夹」对话框（由 Python 侧调用），不是网页控件。
+
 **Q：提示「没有在该文件夹中找到任何 manifest.json」？**
 请选择 Addon 的**根目录**（其下含 BP/RP 子文件夹），或直接选到某一个含 `manifest.json` 的包目录。程序最多向下查找 4 层。
 
@@ -273,6 +363,7 @@ UUID 变更后需要重新导入世界/全局资源。同一世界若仍引用�
 
 **Q：为什么 `.mcaddon` 解压后是文件夹套文件夹？**
 见「压缩包结构」一节，这是为了避免同名文件互相覆盖，Minecraft 能正常识别。
+如果你不想要这层，改用 `.zip` 格式：它不保留 Addon 根目录名，单包时内容更是直接铺在压缩包根。
 
 **Q：打包后 manifest.json 被改了，怎么恢复？**
 点「还原备份」，会用 `manifest.json.bak` 覆盖当前的 `manifest.json`。

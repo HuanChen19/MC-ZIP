@@ -85,7 +85,7 @@ PACK_MODES = OrderedDict([
     ("auto", "自动识别（推荐）"),
     ("mcaddon", ".mcaddon 整合包"),
     ("mcpack", ".mcpack 单包"),
-    ("zip", ".zip 目录快照"),
+    ("zip", ".zip 直出（不套外层目录）"),
 ])
 
 
@@ -668,7 +668,8 @@ def build_package(
       * .mcpack  —— base 取包目录本身，manifest.json 位于压缩包根
       * .mcaddon —— base 取 Addon 根目录，各子包以文件夹形式并列存放，
                     避免 BP / RP 的 manifest.json、pack_icon.png 互相覆盖
-      * .zip     —— base 取根目录的父级，保留 Addon 文件夹名
+      * .zip     —— 面向「解压即用」，不保留 Addon 根目录名：
+                    单个包时内容直接位于压缩包根；多个包时各包以文件夹并列
 
     only_bp_rp=True（默认）时，只打包行为包 / 资源包：
       Addon 根目录下的其他内容（皮肤包、世界模板、文档、脚本工具等）一律不进压缩包。
@@ -704,8 +705,16 @@ def build_package(
                 jobs.append((pack.root, [pack.root],
                              out_dir / f"{name}_v{version_tag([pack])}.mcpack"))
     elif resolved_mode == "zip":
-        jobs.append((root.parent, selected_roots,
-                     out_dir / f"{pack_name}_v{version_tag(included)}.zip"))
+        # ZIP 面向"解压即用"：不保留 Addon 根目录名。
+        #   * 只有一个包时 -> 该包内容直接在压缩包根（manifest.json 等不再套一层）
+        #   * 多个包时     -> 各包以文件夹并列（否则多个 manifest.json 会互相覆盖）
+        if len(included) == 1:
+            only = included[0]
+            jobs.append((only.root, [only.root],
+                         out_dir / f"{pack_name}_v{version_tag(included)}.zip"))
+        else:
+            jobs.append((root, selected_roots,
+                         out_dir / f"{pack_name}_v{version_tag(included)}.zip"))
     else:  # mcaddon
         jobs.append((root, selected_roots,
                      out_dir / f"{pack_name}_v{version_tag(included)}.mcaddon"))

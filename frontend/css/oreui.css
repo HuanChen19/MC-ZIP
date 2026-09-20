@@ -1,0 +1,901 @@
+/* ==========================================================================
+   Ore UI — asset-faithful web recreation
+   Sprites & colors extracted 1:1 from:
+     [light] "OreUI Expanded"            (by DiamondIsntHere)
+     [dark]  "Dark OreUI Recreation v2.5.2" (by bitznotmikel & tmc249)
+   Nine-slice metrics come from each sprite's .mcmeta (gui.scaling.nine_slice).
+   Render scale: 2x (1 texture px = 2 css px), image-rendering: pixelated.
+   ========================================================================== */
+
+/* ---------- font (packs ship no font; Silkscreen OFL stands in) ---------- */
+@font-face {
+  font-family: "Silkscreen";
+  src: url("../assets/fonts/Silkscreen-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Silkscreen";
+  src: url("../assets/fonts/Silkscreen-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-display: swap;
+}
+
+/* ==========================================================================
+   THEME TOKENS
+   ========================================================================== */
+:root {
+  --font-ui: "Silkscreen", "Courier New", monospace;
+  --ui-size: 16px;              /* 2x of the 8px font grid */
+  --focus-ring: #ffffff;        /* Ore UI signature white focus outline */
+}
+
+/* ---------- LIGHT : "OreUI Expanded" ---------- */
+html[data-theme="light"] {
+  color-scheme: light;
+
+  /* page backdrop: options_background.png tile (16x16 -> 32px) */
+  --page-bg-img: url("../assets/light/options_bg.png");
+  --page-bg-size: 32px 32px;
+  --page-bg-color: #48494a;
+
+  /* sprites */
+  --s-button:       url("../assets/light/button.png");
+  --s-button-hi:    url("../assets/light/button_hi.png");
+  --s-button-dis:   url("../assets/light/button_dis.png");
+  --slice-btn:      3 3 4 3;    /* mcmeta: L3 T3 R3 B4 */
+  --slice-btn-hi:   3 3 5 3;    /* mcmeta: L3 T3 R3 B5 */
+  --slice-btn-dis:  3;
+  --w-btn:          6px 6px 8px 6px;
+
+  --s-checkbox:     url("../assets/light/checkbox.png");
+  --s-checkbox-hi:  url("../assets/light/checkbox_hi.png");
+  --s-checkbox-on:  url("../assets/light/checkbox_on.png");
+  --s-checkbox-on-hi: url("../assets/light/checkbox_on_hi.png");
+  --checkbox-render: auto;      /* 64px diamond, designed for smooth downscale */
+
+  --s-slider:       url("../assets/light/slider.png");
+  --s-slider-hi:    url("../assets/light/slider_hi.png");
+  --slice-slider:   3;
+  --slice-slider-hi: 2;
+  --w-slider:       6px;
+  --s-handle:       url("../assets/light/handle.png");
+  --s-handle-hi:    url("../assets/light/handle_hi.png");
+  --slice-handle:   2 2 4 2;
+  --w-handle:       4px 4px 8px 4px;
+
+  --s-field:        url("../assets/light/field.png");
+  --s-field-hi:     url("../assets/light/field_hi.png");   /* identical to normal in this pack */
+
+  --s-tab:          url("../assets/light/tab.png");
+  --s-tab-hi:       url("../assets/light/tab_hi.png");
+  --s-tab-sel:      url("../assets/light/tab_sel.png");
+  --s-tab-sel-hi:   url("../assets/light/tab_sel_hi.png");
+
+  --s-cross:        url("../assets/light/cross.png");
+  --s-cross-hi:     url("../assets/light/cross_hi.png");
+  --s-locked:       url("../assets/light/locked.png");
+  --s-locked-hi:    url("../assets/light/locked_hi.png");
+  --s-unlocked:     url("../assets/light/unlocked.png");
+  --s-unlocked-hi:  url("../assets/light/unlocked_hi.png");
+
+  --s-scroller:     url("../assets/light/scroller.png");
+  --slice-scroller: 2 2 4 2;
+  --w-scroller:     4px 4px 8px 4px;
+  --scroll-track:   none;       /* light pack defines no track -> none shown */
+
+  --s-panel:        url("../assets/light/panel.png");      /* white-framed dark panel, slice 8 */
+  --s-panel-dark:   url("../assets/light/panel_dark.png"); /* black-framed panel, slice 6 */
+  --s-popup:        url("../assets/light/popup.png");
+  --slice-popup:    6;
+  --w-popup:        12px;
+  --s-tooltip-bg:   url("../assets/light/popup.png");      /* light pack: popup doubles as tooltip */
+  --slice-tooltip:  6;
+  --w-tooltip:      12px;
+  --s-tooltip-frame: none;
+  --tooltip-frame-display: none;
+
+  --s-slot:         url("../assets/light/slot.png");
+  --s-hotbar:       url("../assets/light/hotbar.png");
+  --s-hotbar-sel:   url("../assets/light/hotbar_sel.png");
+  --s-page-prev:    url("../assets/light/page_prev.png");
+  --s-page-prev-hi: url("../assets/light/page_prev_hi.png");
+  --s-page-next:    url("../assets/light/page_next.png");
+  --s-page-next-hi: url("../assets/light/page_next_hi.png");
+  --page-w: 24px; --page-h: 36px;                          /* 12x18 @2x */
+
+  --s-sep:          url("../assets/light/header_sep.png"); /* 32x2, 1px #1E1E1F line */
+  --sep-color:      #1e1e1f;
+
+  --icon-search: url("../assets/light/icon_search.png");
+  --icon-check:  url("../assets/light/icon_check.png");
+  --icon-info:   url("../assets/light/icon_info.png");
+  --icon-lang:   url("../assets/light/icon_lang.png");
+  --icon-a11y:   url("../assets/light/icon_a11y.png");
+  --icon-news:   url("../assets/light/icon_news.png");
+  --icon-link:   url("../assets/light/icon_link.png");
+  --icon-invite: url("../assets/light/icon_invite.png");
+  --adv-task:      url("../assets/light/adv_task.png");
+  --adv-goal:      url("../assets/light/adv_goal.png");
+  --adv-challenge: url("../assets/light/adv_challenge.png");
+  --slot-frame:    url("../assets/light/slot_frame.png");
+  --pack-icon:     url("../assets/light/pack.png");
+
+  /* text palette (vanilla GUI rules; fsh shader confirms dark-gray label = #3F3F3F) */
+  --text:            #ffffff;
+  --text-shadow:     #3f3f3f;
+  --text-dark:       #3f3f3f;   /* labels on light surfaces (tabs/slots) */
+  --text-dark-shadow:#0f0f0f;
+  --text-disabled:   #a0a0a0;
+  --text-disabled-shadow: #282828;
+  --tab-text:        #3f3f3f;   /* unselected tab is light gray #B1B2B5 */
+
+  --accent:          #52a535;   /* pack green (hover button / selected tab) */
+  --accent-dark:     #1d4d13;
+  --on-accent-text:  #ffffff;
+
+  --overlay:         rgba(16, 16, 16, 0.75);
+}
+
+/* ---------- DARK : "Dark OreUI Recreation v2.5.2" ---------- */
+html[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* flat dark backdrop (tooltip body tone, extracted from pack) */
+  --page-bg-img:    none;
+  --page-bg-size:   auto;
+  --page-bg-color:  #242425;
+
+  --s-button:       url("../assets/dark/button.png");
+  --s-button-hi:    url("../assets/dark/button_hi.png");   /* 202x22, adds white outline */
+  --s-button-dis:   url("../assets/dark/button_dis.png");
+  --slice-btn:      3;
+  --slice-btn-hi:   4 4 6 4;    /* mcmeta: L4 T4 R4 B6 */
+  --slice-btn-dis:  1;
+  --w-btn:          6px 6px 8px 6px;
+
+  --s-checkbox:     url("../assets/dark/checkbox.png");
+  --s-checkbox-hi:  url("../assets/dark/checkbox_hi.png");
+  --s-checkbox-on:  url("../assets/dark/checkbox_on.png");
+  --s-checkbox-on-hi: url("../assets/dark/checkbox_on_hi.png");
+  --checkbox-render: pixelated; /* 20x20 native */
+
+  --s-slider:       url("../assets/dark/slider.png");
+  --s-slider-hi:    url("../assets/dark/slider_hi.png");
+  --slice-slider:   2;
+  --slice-slider-hi: 1;
+  --w-slider:       4px;
+  --s-handle:       url("../assets/dark/handle.png");
+  --s-handle-hi:    url("../assets/dark/handle_hi.png");
+  --slice-handle:   2 2 3 2;
+  --w-handle:       4px 4px 6px 4px;
+
+  --s-field:        url("../assets/dark/field.png");
+  --s-field-hi:     url("../assets/dark/field_hi.png");    /* white focus border */
+
+  --s-tab:          url("../assets/dark/tab.png");
+  --s-tab-hi:       url("../assets/dark/tab_hi.png");
+  --s-tab-sel:      url("../assets/dark/tab_sel.png");
+  --s-tab-sel-hi:   url("../assets/dark/tab_sel_hi.png");
+
+  --s-cross:        url("../assets/dark/cross.png");
+  --s-cross-hi:     url("../assets/dark/cross_hi.png");
+  --s-locked:       url("../assets/dark/locked.png");
+  --s-locked-hi:    url("../assets/dark/locked_hi.png");
+  --s-unlocked:     url("../assets/dark/unlocked.png");
+  --s-unlocked-hi:  url("../assets/dark/unlocked_hi.png");
+
+  --s-scroller:     url("../assets/dark/scroller.png");
+  --slice-scroller: 2 2 5 2;
+  --w-scroller:     4px 4px 10px 4px;
+  --scroll-track:   url("../assets/dark/scroller_bg.png"); /* 2px centered line */
+
+  --s-panel:        url("../assets/dark/panel.png");       /* rounded dark panel, slice 8 */
+  --s-panel-dark:   url("../assets/dark/panel_dark.png");  /* slice 6 */
+  --s-popup:        url("../assets/dark/popup.png");
+  --slice-popup:    2;
+  --w-popup:        4px;
+  --s-tooltip-bg:   url("../assets/dark/tooltip_bg.png");
+  --slice-tooltip:  10;
+  --w-tooltip:      20px;
+  --s-tooltip-frame: url("../assets/dark/tooltip_frame.png");
+  --slice-tooltip-frame: 11;
+  --w-tooltip-frame: 22px;
+  --tooltip-frame-display: block;
+
+  --s-slot:         url("../assets/dark/slot.png");
+  --s-hotbar:       url("../assets/dark/hotbar.png");
+  --s-hotbar-sel:   url("../assets/dark/hotbar_sel.png");
+  --s-page-prev:    url("../assets/dark/page_prev.png");
+  --s-page-prev-hi: url("../assets/dark/page_prev_hi.png");
+  --s-page-next:    url("../assets/dark/page_next.png");
+  --s-page-next-hi: url("../assets/dark/page_next_hi.png");
+  --page-w: 46px; --page-h: 26px;                          /* 23x13 @2x */
+
+  --s-sep:          none;
+  --sep-color:      #1e1e1f;
+
+  /* icons not overridden by the dark pack -> reuse light pack (vanilla-look) */
+  --icon-search: url("../assets/light/icon_search.png");
+  --icon-check:  url("../assets/light/icon_check.png");
+  --icon-info:   url("../assets/light/icon_info.png");
+  --icon-lang:   url("../assets/dark/icon_lang.png");
+  --icon-a11y:   url("../assets/dark/icon_a11y.png");
+  --icon-news:   url("../assets/light/icon_news.png");
+  --icon-link:   url("../assets/light/icon_link.png");
+  --icon-invite: url("../assets/light/icon_invite.png");
+  --adv-task:      url("../assets/light/adv_task.png");
+  --adv-goal:      url("../assets/light/adv_goal.png");
+  --adv-challenge: url("../assets/light/adv_challenge.png");
+  --slot-frame:    url("../assets/dark/slot_frame.png");
+  --pack-icon:     url("../assets/dark/pack.png");
+
+  --text:            #ffffff;   /* text.fsh: GUI gray -> white */
+  --text-shadow:     #3f3f3f;
+  --text-dark:       #3f3f3f;
+  --text-dark-shadow:#0f0f0f;
+  --text-disabled:   #a0a0a0;
+  --text-disabled-shadow: #282828;
+  --tab-text:        #ffffff;   /* unselected tab is mid gray #525252 */
+
+  --accent:          #3c8527;   /* pack checkbox green */
+  --accent-dark:     #2a641c;
+  --on-accent-text:  #ffffff;
+
+  --overlay:         rgba(16, 16, 16, 0.75);
+}
+
+/* ==========================================================================
+   BASE
+   ========================================================================== */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: var(--ui-size);
+  line-height: 1.4;
+  color: var(--text);
+  background-color: var(--page-bg-color);
+  background-image: var(--page-bg-img);
+  background-size: var(--page-bg-size);
+  image-rendering: pixelated;
+  -webkit-font-smoothing: none;
+  overflow: hidden;
+}
+
+button, input { font: inherit; color: inherit; }
+
+::selection { background: var(--accent); color: var(--on-accent-text); }
+
+.pix { image-rendering: pixelated; }
+
+/* Minecraft text-shadow rule: (color & 0xFCFCFC) >> 2, offset +1 font px (=2 css px) */
+.t-shadow       { text-shadow: 2px 2px 0 var(--text-shadow); }
+.t-dark         { color: var(--text-dark); text-shadow: 2px 2px 0 var(--text-dark-shadow); }
+.t-disabled     { color: var(--text-disabled); text-shadow: 2px 2px 0 var(--text-disabled-shadow); }
+.t-accent       { color: var(--accent); text-shadow: 2px 2px 0 var(--text-dark-shadow); }
+
+h1, h2, h3, p { margin: 0; font-weight: 400; }
+
+/* ==========================================================================
+   LAYOUT SHELL
+   ========================================================================== */
+#app {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 16px;
+  overflow: hidden;
+}
+
+/* ---------- header ---------- */
+.ore-header {
+  width: min(960px, 100%);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 4px 8px;
+}
+.ore-header .pack-icon {
+  width: 40px; height: 40px;
+  image-rendering: pixelated;
+  flex: none;
+}
+.ore-header .titles { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ore-header h1 {
+  font-size: 24px;
+  font-weight: 700;
+  text-shadow: 3px 3px 0 var(--text-shadow);
+  letter-spacing: 1px;
+}
+.ore-header .sub {
+  font-size: 12px;
+  color: var(--text);
+  opacity: .75;
+  text-shadow: 2px 2px 0 var(--text-shadow);
+}
+.ore-header .spacer { flex: 1; }
+
+/* icon button (header tools) */
+.ore-iconbtn {
+  width: 40px; height: 40px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0;
+}
+.ore-iconbtn img { width: 24px; height: 24px; image-rendering: pixelated; }
+.ore-iconbtn:hover img, .ore-iconbtn:focus-visible img { filter: brightness(1.35); }
+
+/* horizontal separator (header/footer) — light: sprite line, dark: flat line */
+.ore-sep {
+  width: min(960px, 100%);
+  height: 4px;
+  flex: none;
+  background-image: var(--s-sep);
+  background-repeat: repeat-x;
+  background-size: auto 4px;
+  image-rendering: pixelated;
+  border-bottom: 2px solid var(--sep-color);
+}
+
+/* ---------- theme segmented control (uses tab sprites) ---------- */
+.theme-switch { display: flex; gap: 6px; }
+.theme-switch .ore-tab { min-width: 0; height: 40px; padding: 0 14px 4px; font-size: 14px; }
+
+/* ==========================================================================
+   TABS  (130x24 sprite, slice L2 T2 R2 B0)
+   ========================================================================== */
+.ore-tabs {
+  width: min(960px, 100%);
+  display: flex;
+  gap: 6px;
+  padding: 10px 4px 0;
+  flex: none;
+  z-index: 2;
+}
+.ore-tab {
+  appearance: none;
+  background: none;
+  cursor: pointer;
+  min-width: 150px;
+  height: 48px;
+  padding: 2px 18px 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--tab-text);
+  text-shadow: 2px 2px 0 var(--text-dark-shadow);
+  border-style: solid;
+  border-width: 4px 4px 0 4px;
+  border-image-source: var(--s-tab);
+  border-image-slice: 2 2 0 2 fill;
+  border-image-repeat: stretch;
+  image-rendering: pixelated;
+}
+.ore-tab:hover:not(.sel) { border-image-source: var(--s-tab-hi); }
+.ore-tab.sel {
+  color: var(--on-accent-text);
+  text-shadow: 2px 2px 0 var(--text-shadow);
+  border-image-source: var(--s-tab-sel);
+}
+.ore-tab.sel:hover { border-image-source: var(--s-tab-sel-hi); }
+html[data-theme="dark"] .ore-tab { text-shadow: 2px 2px 0 var(--text-shadow); }
+
+/* ==========================================================================
+   MAIN WINDOW PANEL  (friends/background.png, slice 8 -> 16px)
+   ========================================================================== */
+.ore-window {
+  width: min(960px, 100%);
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-style: solid;
+  border-width: 16px;
+  border-image-source: var(--s-panel);
+  border-image-slice: 8 fill;
+  border-image-repeat: stretch;
+  image-rendering: pixelated;
+  position: relative;
+}
+.window-titlebar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px 10px;
+}
+.window-titlebar h2 { font-size: 18px; text-shadow: 2px 2px 0 var(--text-shadow); }
+.window-titlebar .spacer { flex: 1; }
+
+/* ==========================================================================
+   CROSS BUTTON (14x14)
+   ========================================================================== */
+.ore-cross {
+  width: 28px; height: 28px;
+  padding: 0;
+  border: none;
+  cursor: pointer;
+  background-color: transparent;
+  background-image: var(--s-cross);
+  background-size: 28px 28px;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+}
+.ore-cross:hover, .ore-cross:focus-visible { background-image: var(--s-cross-hi); }
+
+/* ==========================================================================
+   SCROLL AREA  (custom scroller, 6x32 sprite)
+   ========================================================================== */
+.ore-scroll { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.ore-scroll .scroll-content {
+  position: absolute;
+  inset: 0 14px 0 0;
+  padding: 4px 8px 12px 10px;
+  will-change: transform;
+}
+.ore-track {
+  position: absolute;
+  top: 0; bottom: 0; right: 0;
+  width: 12px;
+  background-image: var(--scroll-track);
+  background-repeat: repeat-y;
+  background-position: center top;
+  background-size: 12px auto;
+  image-rendering: pixelated;
+}
+.ore-thumb {
+  position: absolute;
+  right: 0;
+  width: 12px;
+  border-style: solid;
+  border-width: var(--w-scroller);
+  border-image-source: var(--s-scroller);
+  border-image-slice: var(--slice-scroller) fill;
+  border-image-repeat: stretch;
+  image-rendering: pixelated;
+  cursor: grab;
+}
+.ore-thumb.dragging { cursor: grabbing; }
+
+/* ==========================================================================
+   SETTINGS ROWS
+   ========================================================================== */
+.ore-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 56px;
+  padding: 6px 2px;
+}
+.ore-row .row-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-shadow: 2px 2px 0 var(--text-shadow);
+}
+.ore-row .row-label small {
+  display: block;
+  font-size: 12px;
+  opacity: .75;
+  margin-top: 4px;
+}
+.ore-row .row-control { flex: none; display: flex; align-items: center; gap: 10px; }
+.ore-row .row-control > * { flex: none; }
+
+/* ==========================================================================
+   BUTTON  (200x20 sprite; light slice L3T3R3B4, dark slice 3; hi/dis variants)
+   ========================================================================== */
+.ore-btn {
+  appearance: none;
+  background: none;
+  cursor: pointer;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 240px;
+  min-height: 40px;
+  padding: 2px 20px 4px;
+  color: var(--text);
+  text-shadow: 2px 2px 0 var(--text-shadow);
+  border-style: solid;
+  border-width: var(--w-btn);
+  border-image-source: var(--s-button);
+  border-image-slice: var(--slice-btn) fill;
+  border-image-repeat: stretch;
+  image-rendering: pixelated;
+  user-select: none;
+}
+.ore-btn:hover:not(:disabled),
+.ore-btn:focus-visible:not(:disabled) {
+  border-image-source: var(--s-button-hi);
+  border-image-slice: var(--slice-btn-hi) fill;
+  outline: none;
+}
+.ore-btn:disabled {
+  border-image-source: var(--s-button-dis);
+  border-image-slice: var(--slice-btn-dis) fill;
+  color: var(--text-disabled);
+  text-shadow: 2px 2px 0 var(--text-disabled-shadow);
+  cursor: default;
+}
+.ore-btn.small { min-width: 150px; }
+.ore-btn.force-hi {  /* showcase: pinned hover state */
+  border-image-source: var(--s-button-hi);
+  border-image-slice: var(--slice-btn-hi) fill;
+}
+
+/* ==========================================================================
+   TOGGLE / CHECKBOX
+   light: 64px Ore diamond (smooth) | dark: 20x20 square (pixelated)
+   ========================================================================== */
+.ore-check {
+  appearance: none;
+  width: 44px; height: 44px;
+  padding: 0;
+  border: none;
+  background-color: transparent;
+  background-image: var(--s-checkbox);
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  image-rendering: var(--checkbox-render);
+  cursor: pointer;
+}
+.ore-check:hover, .ore-check:focus-visible { background-image: var(--s-checkbox-hi); }
+.ore-check[aria-checked="true"] { background-image: var(--s-checkbox-on); }
+.ore-check[aria-checked="true"]:hover,
+.ore-check[aria-checked="true"]:focus-visible { background-image: var(--s-checkbox-on-hi); }
+/* static showcase variants */
+.ore-check.static { pointer-events: none; }
+
+/* ==========================================================================
+   SLIDER  (track 200x20 + handle 8x20)
+   ========================================================================== */
+.ore-slider {
+  position: relative;
+  width: 240px;
+  height: 40px;
+  border-style: solid;
+  border-width: var(--w-slider);
+  border-image-source: var(--s-slider);
+  border-image-slice: var(--slice-slider) fill;
+  border-image-repeat: stretch;
+  image-rendering: pixelated;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+}
+.ore-slider:hover, .ore-slider.dragging {
+  border-image-source: var(--s-slider-hi);
+  border-image-slice: var(--slice-slider-hi) fill;
+}
+.ore-slider .handle {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 16px;
+  transform: translateX(-50%);
+  border-style: solid;
+  border-width: var(--w-handle);
+  border-image-source: var(--s-handle);
+  border-image-slice: var(--slice-handle) fill;
+  border-image-repeat: stretch;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+.ore-slider:hover .handle, .ore-slider.dragging .handle { border-image-source: var(--s-handle-hi); }
+.ore-slider .slider-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  color: var(--text);
+  text-shadow: 2px 2px 0 var(--text-shadow);
+  font-size: 14px;
+  padding: 0 12px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* ==========================================================================
+   TEXT FIELD  (200x20, slice L1 T3 R1 B1)
+   ========================================================================== */
+.ore-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 12px;
+  border-style: solid;
+  border-width: 6px 2px 2px 2px;
+  border-image-source: var(--s-field);
+  border-image-slice: 3 1 1 1 fill;
+  border-image-repeat: stretch;
+  image-rendering: pixelated;
+}
+.ore-field:focus-within { border-image-source: var(--s-field-hi); }
+.ore-field img { width: 20px; height: 20px; image-rendering: pixelated; flex: none; }
+.ore-field input {
+  all: unset;
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text);
+  text-shadow: 2px 2px 0 var(--text-shadow);
+  caret-color: var(--text);
+}
+.ore-field input::placeholder { color: var(--text-disabled); text-shadow: none; }
+
+/* ==========================================================================
+   LOCK & PAGE BUTTONS
+   ========================================================================== */
+.ore-lock {
+  width: 40px; height: 40px;
+  padding: 0; border: none; cursor: pointer;
+  background-color: transparent;
+  background-image: var(--s-unlocked);
+  background-size: 40px 40px;
+  image-rendering: pixelated;
+}
+.ore-lock:hover, .ore-lock:focus-visible { background-image: var(--s-unlocked-hi); }
+.ore-lock.locked { background-image: var(--s-locked); }
+.ore-lock.locked:hover, .ore-lock.locked:focus-visible { background-image: var(--s-locked-hi); }
+
+.ore-page {
+  width: var(--page-w); height: var(--page-h);
+  padding: 0; border: none; cursor: pointer;
+  background-color: transparent;
+  background-repeat: no-repeat;
+  background-size: contain;
+  image-rendering: pixelated;
+}
+.ore-page.prev { background-image: var(--s-page-prev); }
+.ore-page.prev:hover, .ore-page.prev:focus-visible { background-image: var(--s-page-prev-hi); }
+.ore-page.next { background-image: var(--s-page-next); }
+.ore-page.next:hover, .ore-page.next:focus-visible { background-image: var(--s-page-next-hi); }
+.ore-page:disabled { opacity: .4; cursor: default; }
+.ore-page:disabled:hover { background-image: var(--s-page-prev); }
+.ore-page.next:disabled:hover { background-image: var(--s-page-next); }
+
+/* ==========================================================================
+   POPUP DIALOG  (popup/background.png)
+   ========================================================================== */
+.ore-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .12s linear;
+}
+.ore-overlay.open { opacity: 1; pointer-events: auto; }
+.ore-popup {
+  position: relative;
+  width: min(520px, calc(100vw - 48px));
+  padding: 22px 24px 20px;
+  border-style: solid;
+  border-width: var(--w-popup);
+  border-image-source: var(--s-popup);
+  border-image-slice: var(--slice-popup) fill;
+  border-image-repeat: stretch;
+  image-rendering: pixelated;
+  transform: scale(.96);
+  transition: transform .12s linear;
+}
+.ore-overlay.open .ore-popup { transform: scale(1); }
+.ore-popup h3 { font-size: 18px; text-shadow: 2px 2px 0 var(--text-shadow); margin-bottom: 12px; }
+.ore-popup p  { font-size: 14px; text-shadow: 2px 2px 0 var(--text-shadow); margin-bottom: 18px; }
+.ore-popup .popup-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.ore-popup .ore-cross { position: absolute; top: 12px; right: 12px; }
+
+/* ==========================================================================
+   TOOLTIP
+   dark: tooltip_bg (slice 10) + tooltip_frame (slice 11) stacked
+   light: popup sprite
+   ========================================================================== */
+.ore-tooltip {
+  position: fixed;
+  z-index: 90;
+  max-width: 300px;
+  padding: 24px 26px;
+  pointer-events: none;
+  color: #ffffff;
+  text-shadow: 2px 2px 0 #3f3f3f;
+  font-size: 13px;
+  display: none;
+}
+.ore-tooltip.show { display: block; }
+.ore-tooltip::before, .ore-tooltip::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-style: solid;
+  image-rendering: pixelated;
+  z-index: -1;
+}
+.ore-tooltip::before {
+  border-width: var(--w-tooltip);
+  border-image-source: var(--s-tooltip-bg);
+  border-image-slice: var(--slice-tooltip) fill;
+  border-image-repeat: stretch;
+}
+.ore-tooltip::after {
+  display: var(--tooltip-frame-display);
+  border-width: var(--w-tooltip-frame, 0);
+  border-image-source: var(--s-tooltip-frame);
+  border-image-slice: var(--slice-tooltip-frame, 11) fill;
+  border-image-repeat: stretch;
+}
+html[data-theme="light"] .ore-tooltip { padding: 16px 18px; }
+
+/* ==========================================================================
+   SLOTS / HOTBAR / FRAMES
+   ========================================================================== */
+.ore-slot {
+  width: 36px; height: 36px;
+  background-image: var(--s-slot);
+  background-size: 36px 36px;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.ore-slot img { width: 24px; height: 24px; object-fit: contain; image-rendering: pixelated; }
+
+.slot-grid { display: grid; grid-template-columns: repeat(9, 36px); gap: 2px; }
+
+.ore-hotbar {
+  position: relative;
+  width: 364px; height: 44px;
+  background-image: var(--s-hotbar);
+  background-size: 364px 44px;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  flex: none;
+}
+.ore-hotbar .hb-item {
+  position: absolute;
+  width: 24px; height: 24px;
+  top: 10px;
+  image-rendering: pixelated;
+  cursor: pointer;
+}
+.ore-hotbar .sel {
+  position: absolute;
+  width: 48px; height: 46px;
+  top: -2px;
+  background-image: var(--s-hotbar-sel);
+  background-size: 48px 46px;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+.ore-frame-deco {
+  width: 80px; height: 80px;
+  background-image: var(--slot-frame);
+  background-size: 80px 80px;
+  image-rendering: pixelated;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.adv-frame { width: 52px; height: 52px; image-rendering: pixelated; cursor: default; }
+
+/* ==========================================================================
+   WIDGET SHOWCASE GRID
+   ========================================================================== */
+.showcase {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
+.show-card {
+  border-style: solid;
+  border-width: 12px;
+  border-image-source: var(--s-panel-dark);
+  border-image-slice: 6 fill;
+  border-image-repeat: stretch;
+  image-rendering: pixelated;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-height: 120px;
+  justify-content: center;
+}
+.show-card .cap { font-size: 12px; opacity: .8; text-shadow: 2px 2px 0 var(--text-shadow); text-align: center; }
+.show-card .row { display: flex; gap: 12px; align-items: center; justify-content: center; flex-wrap: wrap; }
+
+.icon-row { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.icon-row img { width: 28px; height: 28px; object-fit: contain; image-rendering: pixelated; }
+
+/* ==========================================================================
+   TOAST  (panel_dark sprite)
+   ========================================================================== */
+#toasts {
+  position: fixed;
+  top: 14px; right: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 100;
+}
+.ore-toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-style: solid;
+  border-width: 12px;
+  border-image-source: var(--s-panel-dark);
+  border-image-slice: 6 fill;
+  border-image-repeat: stretch;
+  image-rendering: pixelated;
+  text-shadow: 2px 2px 0 var(--text-shadow);
+  font-size: 13px;
+  animation: toast-in .18s steps(3) forwards;
+}
+.ore-toast img { width: 20px; height: 20px; image-rendering: pixelated; }
+.ore-toast.bye { animation: toast-out .18s steps(3) forwards; }
+@keyframes toast-in  { from { transform: translateX(110%); } to { transform: translateX(0); } }
+@keyframes toast-out { from { transform: translateX(0); } to { transform: translateX(110%); } }
+
+/* ==========================================================================
+   FOOTER
+   ========================================================================== */
+.ore-footer {
+  width: min(960px, 100%);
+  padding: 8px 4px 12px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: none;
+}
+.ore-footer .foot-note { font-size: 11px; opacity: .7; text-shadow: 2px 2px 0 var(--text-shadow); }
+
+/* ==========================================================================
+   MISC
+   ========================================================================== */
+.tab-page { display: none; height: 100%; flex-direction: column; min-height: 0; }
+.tab-page.active { display: flex; }
+
+.center-col { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.spec-table { border-collapse: collapse; font-size: 12px; }
+.spec-table th, .spec-table td { padding: 6px 12px; text-align: left; }
+.spec-table th { color: var(--accent); }
+.spec-table td { opacity: .9; }
+.swatch { display: inline-block; width: 12px; height: 12px; margin-right: 8px; vertical-align: -1px; border: 1px solid rgba(128,128,128,.6); }
+
+:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+@media (max-width: 720px) {
+  .ore-tabs { flex-wrap: wrap; }
+  .ore-tab { min-width: 0; flex: 1 1 30%; padding-left: 8px; padding-right: 8px; }
+  .ore-row { flex-wrap: wrap; }
+  .ore-slider { width: 100%; }
+  .ore-btn { min-width: 180px; }
+  .ore-header h1 { font-size: 18px; }
+  .ore-header .sub { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ore-overlay, .ore-popup, .ore-toast { transition: none; animation-duration: .01s; }
+}

@@ -1,0 +1,312 @@
+/* ==========================================================================
+   app.css —— MC-ZIP 网页版应用样式（基于 oreui.css 设计系统）
+   布局与桌面版（addon_packer.py）一致：标题 → ①导入 → ②包列表 →
+   ③操作 → ④日志 → 状态栏。
+   ========================================================================== */
+
+/* 中文回退字体：Silkscreen 仅覆盖拉丁/数字，CJK 走系统黑体（与 Ore UI 中文行为一致） */
+:root {
+  --font-ui: "Silkscreen", "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+  --font-mono: "Silkscreen", "Consolas", "Microsoft YaHei UI", monospace;
+}
+
+/* 内凹面板底色（包列表 / 日志区）：亮=light_dirt 贴图，暗=纯色 */
+html[data-theme="light"] {
+  --inset-bg-img: url("../assets/light/light_dirt_bg.png");
+  --inset-bg-size: 32px 32px;
+  --inset-bg-color: #313233;
+  --inset-border: #1e1e1f;
+
+  /* 卡片 = 容器面板（浅色）：源自 container/inventory.png 原贴图角部 */
+  --s-card: url("../assets/light/card.png");
+  --card-text: #3f3f3f;          /* 容器 GUI 标签色（text.fsh 认定的原版灰） */
+  --card-text-shadow: none;      /* 原版容器标签不画阴影 */
+}
+html[data-theme="dark"] {
+  --inset-bg-img: none;
+  --inset-bg-color: #1b1b1c;
+  --inset-border: #121212;
+
+  /* 卡片 = 容器面板（深色圆角）：源自 dark container/inventory.png 原贴图角部 */
+  --s-card: url("../assets/dark/card.png");
+  --card-text: #ffffff;
+  --card-text-shadow: 2px 2px 0 var(--text-shadow);
+}
+
+html, body { height: 100%; overflow: hidden; }
+
+/* 应用壳宽度对齐（oreui.css 默认 960px，本应用 1060px） */
+.ore-header, .ore-sep { width: min(1060px, 100%); }
+
+/* ------------------------------------------------------------------ 骨架 */
+.app-shell {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 16px;
+}
+
+.app-logo { width: 48px; height: 48px; flex: none; }
+
+.ore-header h1 { font-size: 26px; font-weight: 700; letter-spacing: 2px; }
+.author-note {
+  font-size: 12px;
+  opacity: .75;
+  text-shadow: 2px 2px 0 var(--text-shadow);
+  white-space: nowrap;
+}
+
+.app-main {
+  width: min(1060px, 100%);
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 4px 10px;
+}
+
+/* ------------------------------------------------------------------ 卡片 */
+.app-card {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  border-style: solid;
+  border-width: 4px;
+  border-image-source: var(--s-card);
+  border-image-slice: 2 fill;
+  border-image-repeat: stretch;
+  image-rendering: pixelated;
+  overflow: hidden;
+  color: var(--card-text);
+}
+.app-card.flex-card { flex: 1 1 0; min-height: 0; }
+.app-card.flex-card.list-card { flex-grow: 1.4; }
+
+.card-title {
+  font-weight: 700;
+  font-size: 15px;
+  padding: 6px 8px 6px;
+  text-shadow: var(--card-text-shadow);
+  flex: none;
+}
+.card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 8px 6px;
+  min-height: 0;
+}
+.card-body.grow-col { flex: 1 1 auto; }
+
+/* ------------------------------------------------------------------ 表单行 */
+.form-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.form-row .grow { flex: 1 1 auto; min-width: 220px; }
+.field-label {
+  flex: none;
+  font-size: 13px;
+  text-shadow: var(--card-text-shadow);
+  white-space: nowrap;
+}
+.hint-row { margin-top: -2px; }
+.hint {
+  font-size: 12px;
+  opacity: .75;
+  text-shadow: var(--card-text-shadow);
+}
+.spacer { flex: 1 1 auto; }
+
+.readonly-field input { color: var(--text); opacity: .85; }
+
+.check-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  text-shadow: var(--card-text-shadow);
+  white-space: nowrap;
+}
+.check-row .ore-check { width: 40px; height: 40px; flex: none; }
+
+.btn-row { gap: 12px; }
+.btn-row .ore-btn.primary { font-weight: 700; }
+.opt-row { row-gap: 4px; }
+.opt-row .field-label { margin-left: 2px; }
+.opt-row .ore-dropdown { min-width: 0; }
+
+.ore-dropdown .dd-arrow { margin-left: 10px; opacity: .85; }
+
+/* ------------------------------------------------------------------ ② 包列表 */
+.pack-table {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--inset-bg-color);
+  background-image: var(--inset-bg-img);
+  background-size: var(--inset-bg-size);
+  image-rendering: pixelated;
+  border: 2px solid var(--inset-border);
+  overflow: hidden;
+}
+.pack-head, .pack-row {
+  display: grid;
+  grid-template-columns: 150px 56px 88px 110px minmax(150px, 1.4fr) 56px minmax(80px, 1fr);
+  align-items: center;
+}
+.pack-head {
+  flex: none;
+  padding: 8px 10px;
+  border-bottom: 2px solid var(--inset-border);
+  font-size: 12px;
+  opacity: .8;
+  color: var(--text);
+  text-shadow: 2px 2px 0 var(--text-shadow);
+  user-select: none;
+}
+.pack-row {
+  padding: 7px 10px;
+  font-size: 12px;
+  cursor: default;
+  color: var(--text);
+  text-shadow: 2px 2px 0 var(--text-shadow);
+  user-select: none;
+}
+.pack-row.sel { box-shadow: inset 0 0 0 2px var(--focus-ring); }
+.pack-row.skipped { color: var(--text-disabled); text-shadow: 2px 2px 0 var(--text-disabled-shadow); }
+.pack-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-right: 8px;
+}
+.pack-cell.c1, .pack-cell.c2, .pack-cell.c3, .pack-cell.c5 { text-align: center; padding-right: 0; }
+
+.list-scroll { flex: 1 1 auto; min-height: 0; }
+.list-scroll .scroll-content { padding: 2px 2px 6px; }
+.list-summary {
+  flex: none;
+  font-size: 12px;
+  opacity: .8;
+  text-shadow: var(--card-text-shadow);
+  padding-top: 6px;
+}
+
+/* ------------------------------------------------------------------ ④ 日志 */
+.log-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  background-color: var(--inset-bg-color);
+  background-image: var(--inset-bg-img);
+  background-size: var(--inset-bg-size);
+  image-rendering: pixelated;
+  border: 2px solid var(--inset-border);
+}
+.log-content { padding: 8px 10px; font-family: var(--font-mono); }
+.log-line {
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: #ffffff;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, .55);
+}
+/* 日志级别配色：沿用 Minecraft 聊天栏 § 色板 */
+.log-line.ok    { color: #55ff55; }
+.log-line.warn  { color: #ffff55; }
+.log-line.err   { color: #ff5555; }
+.log-line.muted { color: #aaaaaa; }
+.log-line.head  { color: var(--accent); font-weight: 700; }
+html[data-theme="light"] .log-line.head { color: #3ddc3d; }
+
+/* ------------------------------------------------------------------ 状态栏 */
+.status-sep { margin-top: 0; }
+.status-bar {
+  width: min(1060px, 100%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 4px 10px;
+  font-size: 12px;
+}
+.status-bar #statusText { text-shadow: 2px 2px 0 var(--text-shadow); }
+.foot-note { opacity: .65; text-shadow: 2px 2px 0 var(--text-shadow); white-space: nowrap; }
+
+/* ------------------------------------------------------------------ Ore 下拉菜单 */
+.ore-menu {
+  position: fixed;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  max-width: min(420px, 90vw);
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 10px;
+  border-style: solid;
+  border-width: var(--w-popup);
+  border-image-source: var(--s-popup);
+  border-image-slice: var(--slice-popup) fill;
+  border-image-repeat: stretch;
+  image-rendering: pixelated;
+}
+.ore-menu-item {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  text-shadow: 2px 2px 0 var(--text-shadow);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ore-menu-item:hover:not(:disabled),
+.ore-menu-item:focus-visible:not(:disabled) {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+  background: rgba(255, 255, 255, .08);
+}
+.ore-menu-item:disabled { color: var(--text-disabled); cursor: default; }
+.ore-menu-item.danger { color: #ff5555; }
+.ore-menu-sep { height: 2px; background: var(--sep-color); margin: 6px 4px; flex: none; }
+.menu-check { width: 18px; height: 16px; object-fit: contain; image-rendering: pixelated; flex: none; }
+
+/* ------------------------------------------------------------------ manifest 查看器 */
+#popupViewer {
+  display: block;
+  max-height: 52vh;
+  overflow: auto;
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  color: #fff;
+  background-color: var(--inset-bg-color);
+  border: 2px solid var(--inset-border);
+  white-space: pre;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, .55);
+}
+.ore-popup p { white-space: pre-wrap; }
+
+/* ------------------------------------------------------------------ 响应式 */
+@media (max-width: 860px) {
+  .pack-head, .pack-row {
+    grid-template-columns: 90px 48px 70px 80px minmax(90px, 1.2fr) 44px minmax(60px, .8fr);
+    font-size: 11px;
+  }
+  .ore-header .sub { display: none; }
+  .author-note { display: none; }
+}
