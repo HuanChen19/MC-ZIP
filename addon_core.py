@@ -335,9 +335,9 @@ class PackInfo:
 
 def find_pack_roots(root: Path) -> List[Path]:
     """
-    返回根目录下所有包目录（含 manifest.json 的目录）。
+    返回根目录自身或其直属子目录中的包目录。
       * 若 root 自身就有 manifest.json -> 视为单包，直接返回 [root]
-      * 否则向下扫描（最多 MAX_SCAN_DEPTH 层），命中即停止下钻
+      * 否则只检查直属子目录，不扫描 docs / tools 等目录内的示例包
     """
     root = Path(root)
     if not root.is_dir():
@@ -346,26 +346,15 @@ def find_pack_roots(root: Path) -> List[Path]:
         return [root]
 
     found: List[Path] = []
-
-    def walk(current: Path, depth: int) -> None:
-        if depth > MAX_SCAN_DEPTH:
-            return
-        try:
-            entries = sorted(current.iterdir(), key=lambda p: p.name.lower())
-        except OSError:
-            return
-        for entry in entries:
-            if not entry.is_dir():
-                continue
-            lowered = entry.name.lower()
-            if lowered in SKIP_DIR_NAMES or entry.name.startswith("."):
-                continue
-            if (entry / MANIFEST_NAME).is_file():
-                found.append(entry)
-                continue
-            walk(entry, depth + 1)
-
-    walk(root, 1)
+    for entry in sorted(root.iterdir(), key=lambda p: p.name.lower()):
+        if not entry.is_dir() or entry.is_symlink():
+            continue
+        if entry.name.lower() in SKIP_DIR_NAMES or entry.name.startswith("."):
+            continue
+        if entry.resolve().parent != root.resolve():
+            continue
+        if (entry / MANIFEST_NAME).is_file():
+            found.append(entry)
     return found
 
 
@@ -536,6 +525,7 @@ def collect_entries(
     entries: List[Tuple[Path, str]] = []
     for pack_root in pack_roots:
         pack_root = Path(pack_root)
+        resolved_pack = pack_root.resolve()
         for dirpath, dirnames, filenames in os.walk(pack_root):
             # 原地过滤目录，避免走入无关目录
             kept: List[str] = []
@@ -544,6 +534,8 @@ def collect_entries(
                     continue
                 child = Path(dirpath) / name
                 try:
+                    if child.is_symlink() or resolved_pack not in child.resolve().parents:
+                        continue
                     if child.resolve() in skip_dirs:
                         continue
                 except OSError:
@@ -559,6 +551,8 @@ def collect_entries(
                     continue
                 source = Path(dirpath) / name
                 try:
+                    if source.is_symlink() or resolved_pack not in source.resolve().parents:
+                        continue
                     if source.resolve() in skip_files:
                         continue
                 except OSError:
@@ -631,16 +625,18 @@ def select_packs(
     按类型筛选要打包的包，返回 (保留, 排除)。
 
     * 只保留行为包（BP）/ 资源包（RP），皮肤包 / 世界模板等其他类型会被排除
-    * 例外：导入的就是单个包目录本身时不做筛选（用户已明确指定了那个目录）
-    * only_bp_rp=False 时全部保留
+    * 单包导入也必须是 BP/RP
+    * only_bp_rp 参数仅为旧调用方保留，False 不再放宽范围
+    * 提供 root 时只接受其自身或直属子目录，防止嵌套示例包混入
     """
     items = list(packs)
-    if not only_bp_rp:
-        return items, []
-    if root is not None and _is_root_itself(root, items):
-        return items, []
-    included = [p for p in items if p.is_bp_rp]
-    excluded = [p for p in items if not p.is_bp_rp]
+    root_path = Path(root).resolve() if root is not None else None
+    included = [p for p in items if p.is_bp_rp and (
+        root_path is None or p.root.resolve() == root_path
+        or (not p.root.is_symlink() and p.root.resolve().parent == root_path)
+    )]
+    included_ids = {id(p) for p in included}
+    excluded = [p for p in items if id(p) not in included_ids]
     return included, excluded
 
 
@@ -671,7 +667,7 @@ def build_package(
       * .zip     —— 面向「解压即用」，不保留 Addon 根目录名：
                     单个包时内容直接位于压缩包根；多个包时各包以文件夹并列
 
-    only_bp_rp=True（默认）时，只打包行为包 / 资源包：
+    始终只打包行为包 / 资源包（旧 only_bp_rp 参数不能放宽范围）：
       Addon 根目录下的其他内容（皮肤包、世界模板、文档、脚本工具等）一律不进压缩包。
     """
     root = Path(root)
@@ -684,8 +680,8 @@ def build_package(
             names = "、".join(p.root.name for p in excluded)
             raise ManifestError(
                 "过滤后没有可打包的包。\n"
-                f"检测到的包均不是行为包 / 资源包：{names}\n"
-                "如需打包它们，请取消勾选「只打包 BP / RP」。"
+                f"检测到的目录不属于根目录直属的行为包 / 资源包：{names}\n"
+                "MC-ZIP 仅支持打包 BP / RP。"
             )
         raise ManifestError("没有可打包的包。")
 

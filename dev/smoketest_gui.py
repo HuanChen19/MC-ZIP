@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import tempfile
 import time
 import zipfile
 from pathlib import Path
@@ -52,10 +53,9 @@ def pump_fixed(app: gui.AddonPackerApp, seconds: float) -> None:
         time.sleep(0.02)
 
 
-def main() -> int:
+def main(out_dir: Path) -> int:
     # 说明：全程只覆盖写入、不删除文件，重复运行不会触发沙箱的批量删除保护
     root = build_fixture()
-    out_dir = root.parent / "gui_dist"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # 配置指向测试专用文件（首次运行清掉，保证从默认状态开始）
@@ -142,15 +142,15 @@ def main() -> int:
     backup = root / "MyAddon_BP" / core.BACKUP_NAME
     assert backup.is_file(), backup
 
-    # 4b) 切换筛选开关后表格应重绘
+    # 4b) 旧 False 选项不能让非 BP/RP 参与打包
     app.var_only_bp_rp.set(False)
     app._on_filter_changed()
     app.root.update()
     rows2 = {app.tree.item(i, "values")[0]: app.tree.item(i, "values")[1]
              for i in app.tree.get_children()}
     print("关闭筛选后:", rows2)
-    assert all(v == "打包" for v in rows2.values()), rows2
-    assert not app.tree.tag_has("skipped", "3")
+    assert rows2 == {"MyAddon_BP": "打包", "MyAddon_RP": "打包", "MyAddon_Skin": "跳过"}, rows2
+    assert app.tree.tag_has("skipped", "3")
     app.var_only_bp_rp.set(True)
     app._on_filter_changed()
     app.root.update()
@@ -201,7 +201,7 @@ def main() -> int:
     app4.root.update()
     pump_fixed(app4, 1.0)
     print("重启后选项:", app4.var_only_bp_rp.get(), app4.var_version_part.get())
-    assert app4.var_only_bp_rp.get() is False, "选项未持久化"
+    assert app4.var_only_bp_rp.get() is True, "旧 False 选项必须迁移到固定 BP/RP 范围"
     assert app4.var_version_part.get() == core.VERSION_PART_LABELS["minor"]
 
     # 6c) 关闭自动打开后不应再自动载入
@@ -226,4 +226,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    with tempfile.TemporaryDirectory(prefix="mczip-gui-test-") as directory:
+        raise SystemExit(main(Path(directory)))

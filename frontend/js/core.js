@@ -257,8 +257,7 @@ const MCZIP_CORE = (() => {
   async function findPackRoots(rootHandle) {
     if (await hasManifest(rootHandle)) return [{ handle: rootHandle, rel: "." }];
     const found = [];
-    async function walk(dir, depth, prefix) {
-      if (depth > MAX_SCAN_DEPTH) return;
+    async function walk(dir) {
       const entries = [];
       for await (const [name, handle] of dir.entries()) entries.push([name, handle]);
       entries.sort((a, b) => a[0].toLowerCase().localeCompare(b[0].toLowerCase()));
@@ -266,11 +265,10 @@ const MCZIP_CORE = (() => {
         if (handle.kind !== "directory") continue;
         const lowered = name.toLowerCase();
         if (SKIP_DIR_NAMES.has(lowered) || name.startsWith(".")) continue;
-        if (await hasManifest(handle)) { found.push({ handle, rel: prefix + name }); continue; }
-        await walk(handle, depth + 1, prefix + name + "/");
+        if (await hasManifest(handle)) found.push({ handle, rel: name });
       }
     }
-    await walk(rootHandle, 1, "");
+    await walk(rootHandle);
     return found;
   }
 
@@ -375,12 +373,12 @@ const MCZIP_CORE = (() => {
     return packs.length === 1 && packs[0].relPath === ".";
   }
 
-  /** 只保留 BP / RP；导入的就是单个包目录本身时不做筛选。 */
+  /** 强制只保留根目录自身或直属的 BP/RP；旧 onlyBpRp 参数不再放宽范围。 */
   function selectPacks(packs, onlyBpRp = true) {
-    if (!onlyBpRp || isRootItself(null, packs)) return { included: [...packs], excluded: [] };
+    const allowed = p => p.isBpRp && (p.relPath === "." || !/[\\/]/.test(p.relPath));
     return {
-      included: packs.filter(p => p.isBpRp),
-      excluded: packs.filter(p => !p.isBpRp),
+      included: packs.filter(allowed),
+      excluded: packs.filter(p => !allowed(p)),
     };
   }
 
@@ -546,7 +544,7 @@ const MCZIP_CORE = (() => {
         throw new ManifestError(
           "过滤后没有可打包的包。\n检测到的包均不是行为包 / 资源包：" +
           excluded.map(p => p.relName).join("、") +
-          "\n如需打包它们，请取消勾选「只处理 BP / RP」。");
+          "\nMC-ZIP 仅支持根目录自身或直属子目录中的 BP / RP。");
       }
       throw new ManifestError("没有可打包的包。");
     }

@@ -1,178 +1,118 @@
 <!DOCTYPE html>
 <html lang="zh-CN" data-theme="light">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MC-ZIP · Minecraft 基岩版 Addon 打包工具</title>
-<meta name="description" content="MC-ZIP 网页版：一键打包 .mcaddon/.mcpack/.zip，版本号自增，UUID 随机刷新。Ore UI 风格界面。">
-<link id="favicon" rel="icon" type="image/png" href="assets/light/pack.png">
-<link rel="stylesheet" href="css/oreui.css">
-<link rel="stylesheet" href="css/app.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MC-ZIP · Addon 打包工具</title>
+  <meta name="description" content="Minecraft 基岩版 Addon 打包工具, 仅打包 BP 与 RP。">
+  <link id="favicon" rel="icon" type="image/png" href="assets/logo.png">
+  <link rel="stylesheet" href="css/oreui.css">
+  <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
-
 <div class="app-shell">
-
-  <!-- ======================= 标题栏 ======================= -->
   <header class="ore-header">
-    <img class="app-logo" src="assets/logo.png" alt="MC-ZIP logo">
-    <div class="titles">
-      <h1>MC-ZIP</h1>
-      <p class="sub">Minecraft 基岩版 Addon 打包工具 · 一键打包 / 版本号自增 / UUID 随机刷新</p>
-    </div>
-    <div class="spacer"></div>
-    <span class="author-note" id="themeNote">主题：自动</span>
-    <div class="theme-switch" role="group" aria-label="主题">
-      <button class="ore-tab" data-theme-mode="light">亮色</button>
-      <button class="ore-tab" data-theme-mode="dark">暗色</button>
-      <button class="ore-tab" data-theme-mode="system">自动</button>
+    <button class="header-home" id="homeBtn" aria-label="返回常规"><span class="ore-icon icon-back" aria-hidden="true"></span></button>
+    <h1>MC-ZIP <span class="header-subtitle">Addon 打包工具</span></h1>
+    <div class="theme-switch" role="group" aria-label="界面主题">
+      <button class="ore-tab" data-theme-mode="light" aria-label="亮色主题">亮色</button>
+      <button class="ore-tab" data-theme-mode="dark" aria-label="暗色主题">暗色</button>
+      <button class="ore-tab" data-theme-mode="system" aria-label="跟随系统主题">自动</button>
     </div>
   </header>
-
-  <div class="ore-sep"></div>
-
-  <main class="app-main">
-
-    <!-- ======================= ① 导入 Addon 文件夹 ======================= -->
-    <section class="app-card">
-      <div class="card-title">① 导入 Addon 文件夹</div>
-      <div class="card-body">
-        <div class="form-row">
-          <label class="field-label" for="pathDisplay">文件夹路径</label>
-          <div class="ore-field grow readonly-field">
-            <input type="text" id="pathDisplay" readonly placeholder="（尚未导入）"
-                   data-tooltip="浏览器安全限制：无法直接打开输入的路径，请用「浏览文件夹…」或把文件夹拖进窗口">
-          </div>
-          <button class="ore-btn small" id="browseBtn">浏览文件夹…</button>
-          <button class="ore-btn small" id="recentBtn" data-menu-anchor>最近打开 ▾</button>
-          <button class="ore-btn small" id="rescanBtn">重新扫描</button>
-        </div>
-        <div class="form-row hint-row">
-          <span class="hint">支持选择 Addon 根目录（其下含 BP / RP 子包），也支持选择单个包目录。也可以直接把文件夹拖进窗口。</span>
-          <span class="spacer"></span>
-          <label class="check-row">
-            <button class="ore-check" id="autoLoadToggle" role="switch" aria-checked="true" aria-label="启动时自动打开上次项目"></button>
-            <span>启动时自动打开上次项目</span>
-          </label>
-        </div>
+  <div class="app-workspace">
+    <aside class="ore-sidebar" aria-label="项目与导航">
+      <div class="project-preview">
+        <img src="assets/logo.png" alt="MC-ZIP" class="project-logo">
+        <span class="preview-caption">MINECRAFT BEDROCK</span>
       </div>
-    </section>
-
-    <!-- ======================= ② 检测到的 manifest.json ======================= -->
-    <section class="app-card flex-card list-card">
-      <div class="card-title">② 检测到的 manifest.json</div>
-      <div class="card-body grow-col">
-        <div class="pack-table">
-          <div class="pack-head">
-            <span class="pack-cell c0">包目录</span>
-            <span class="pack-cell c1">打包</span>
-            <span class="pack-cell c2">类型</span>
-            <span class="pack-cell c3">header.version</span>
-            <span class="pack-cell c4">header.uuid</span>
-            <span class="pack-cell c5">模块数</span>
-            <span class="pack-cell c6">相对路径</span>
-          </div>
-          <div class="ore-scroll list-scroll" id="listScroll">
-            <div class="scroll-content" id="packRows"></div>
-            <div class="ore-track"><div class="ore-thumb"></div></div>
-          </div>
-        </div>
-        <div class="list-summary" id="listSummary">尚未导入</div>
+      <div class="sidebar-actions">
+        <button class="ore-btn primary" id="packBtn" disabled>打包并升级版本</button>
+        <button class="ore-btn" id="uuidBtn" disabled>随机刷新 UUID</button>
       </div>
-    </section>
-
-    <!-- ======================= ③ 操作 ======================= -->
-    <section class="app-card">
-      <div class="card-title">③ 操作</div>
-      <div class="card-body">
-        <div class="form-row btn-row">
-          <button class="ore-btn primary" id="packBtn" disabled>打包并升级版本</button>
-          <button class="ore-btn" id="uuidBtn" disabled>随机刷新 UUID</button>
-          <button class="ore-btn small" id="restoreBtn" disabled>还原备份</button>
-          <button class="ore-btn small" id="openOutBtn" data-tooltip="网页版无法打开系统文件夹">打开输出目录</button>
-        </div>
-
-        <div class="form-row opt-row">
-          <label class="field-label">版本递增位</label>
-          <button class="ore-btn small ore-dropdown" id="partDrop"><span class="dd-label"></span><span class="dd-arrow">▾</span></button>
-          <label class="field-label">输出格式</label>
-          <button class="ore-btn small ore-dropdown" id="modeDrop"><span class="dd-label"></span><span class="dd-arrow">▾</span></button>
-          <label class="field-label">UUID 格式</label>
-          <button class="ore-btn small ore-dropdown" id="uuidDrop"><span class="dd-label"></span><span class="dd-arrow">▾</span></button>
-          <label class="check-row">
-            <button class="ore-check" id="onlyBpRpToggle" role="switch" aria-checked="true" aria-label="只处理 BP / RP"></button>
-            <span>只处理 BP / RP（打包 · 版本 · UUID）</span>
-          </label>
-        </div>
-
-        <div class="form-row opt-row">
-          <label class="check-row">
-            <button class="ore-check" id="bumpToggle" role="switch" aria-checked="true" aria-label="打包时升级版本号"></button>
-            <span>打包时升级版本号</span>
-          </label>
-          <label class="check-row">
-            <button class="ore-check" id="bumpModulesToggle" role="switch" aria-checked="false" aria-label="同时升级 modules 内版本号"></button>
-            <span>同时升级 modules 内版本号</span>
-          </label>
-          <label class="check-row">
-            <button class="ore-check" id="uuidModulesToggle" role="switch" aria-checked="true" aria-label="刷新 modules 内 UUID"></button>
-            <span>刷新 modules 内 UUID</span>
-          </label>
-          <label class="check-row">
-            <button class="ore-check" id="backupToggle" role="switch" aria-checked="true" aria-label="修改前备份 manifest.json"></button>
-            <span>修改前备份 manifest.json</span>
-          </label>
-        </div>
-
-        <div class="form-row">
-          <label class="field-label" for="outDisplay">输出目录</label>
-          <div class="ore-field grow readonly-field">
-            <input type="text" id="outDisplay" readonly value="（打包时询问保存位置）">
+      <nav class="sidebar-nav" aria-label="工具分类">
+        <button class="ore-nav sel" data-panel="general" aria-current="page"><span class="ore-icon icon-block" aria-hidden="true"></span><span>常规</span><span id="packCount" class="nav-count">0</span></button>
+        <button class="ore-nav" data-panel="pack"><span class="ore-icon icon-package" aria-hidden="true"></span><span>打包设置</span></button>
+        <button class="ore-nav" data-panel="uuid"><span class="ore-icon icon-key" aria-hidden="true"></span><span>UUID 设置</span></button>
+        <button class="ore-nav" data-panel="log"><span class="ore-icon icon-log" aria-hidden="true"></span><span>操作日志</span><span id="logCount" class="nav-count">0</span></button>
+      </nav>
+      <div class="sidebar-bottom">
+        <button class="ore-btn small" id="recentBtn" data-menu-anchor>最近打开 <span class="dd-arrow" aria-hidden="true"></span></button>
+        <div class="sidebar-credit">幻尘 · MC-ZIP v1.0.0</div>
+        <div class="sidebar-credit" id="themeNote">主题: 自动</div>
+      </div>
+    </aside>
+    <main class="app-main">
+      <section class="app-panel" id="panel-general" aria-labelledby="generalTitle">
+        <div class="page-heading"><h2 id="generalTitle">常规</h2><p>选择你的 Addon, 检查行为包与资源包。</p></div>
+        <div class="settings-section">
+          <div class="section-heading"><h3>Addon 文件夹</h3><button class="ore-btn small" id="rescanBtn">重新扫描</button></div>
+          <div class="path-row">
+            <div class="ore-field grow"><input type="text" id="pathDisplay" readonly aria-label="Addon 文件夹路径" placeholder="选择 Addon 根目录或单个 BP / RP"></div>
+            <button class="ore-btn" id="browseBtn">浏览文件夹</button>
           </div>
-          <button class="ore-btn small" id="outChangeBtn">更改…</button>
+          <p class="hint">也可将文件夹拖入浏览器窗口。仅识别根目录下直属的 BP / RP 包。</p>
         </div>
-      </div>
-    </section>
-
-    <!-- ======================= ④ 操作日志 ======================= -->
-    <section class="app-card flex-card">
-      <div class="card-title">④ 操作日志</div>
-      <div class="card-body grow-col">
-        <div class="ore-scroll log-scroll" id="logScroll">
-          <div class="scroll-content log-content" id="logContent"></div>
-          <div class="ore-track"><div class="ore-thumb"></div></div>
+        <div class="settings-section packs-section">
+          <div class="section-heading"><h3>行为包与资源包</h3><span class="scope-label"><span class="ore-icon icon-check" aria-hidden="true"></span>仅 BP / RP</span></div>
+          <div class="ore-scroll list-scroll" id="listScroll"><div class="scroll-content" id="packRows"></div></div>
+          <p class="list-summary" id="listSummary" aria-live="polite">尚未导入 Addon</p>
         </div>
-      </div>
-    </section>
-
-  </main>
-
-  <!-- ======================= 状态栏 ======================= -->
-  <div class="ore-sep status-sep"></div>
-  <footer class="status-bar">
-    <span id="statusText">就绪 · 请先导入 Addon 文件夹</span>
-    <span class="spacer"></span>
-    <span class="foot-note">作者：幻尘 · v1.0.0 · Ore UI 网页版</span>
-  </footer>
+        <div class="setting-row">
+          <div class="setting-copy"><label id="autoLoadLabel" for="autoLoadToggle">启动时打开上次的项目</label><p>保留最近使用的项目与输出目录。</p></div>
+          <button class="ore-check" id="autoLoadToggle" role="switch" aria-checked="true" aria-labelledby="autoLoadLabel"></button>
+        </div>
+      </section>
+      <section class="app-panel" id="panel-pack" aria-labelledby="packTitle" hidden>
+        <div class="page-heading"><h2 id="packTitle">打包设置</h2><p>配置输出格式、版本号与备份。</p></div>
+        <div class="settings-section">
+          <label class="setting-title" id="modeLabel">输出格式</label>
+          <button class="ore-btn ore-dropdown full-width" id="modeDrop" aria-labelledby="modeLabel"><span class="dd-label"></span><span class="dd-arrow" aria-hidden="true"></span></button>
+          <p class="hint">自动模式: 单包生成 .mcpack, Addon 生成 .mcaddon。</p>
+        </div>
+        <div class="settings-section">
+          <label class="setting-title" id="partLabel">版本递增位</label>
+          <button class="ore-btn ore-dropdown full-width" id="partDrop" aria-labelledby="partLabel"><span class="dd-label"></span><span class="dd-arrow" aria-hidden="true"></span></button>
+          <p class="hint">主版本或次版本递增后, 右侧版本位归零。</p>
+        </div>
+        <div class="setting-row"><div class="setting-copy"><label id="bumpLabel" for="bumpToggle">打包时升级版本号</label><p>关闭后, 直接打包当前版本。</p></div><button class="ore-check" id="bumpToggle" role="switch" aria-checked="true" aria-labelledby="bumpLabel"></button></div>
+        <div class="setting-row"><div class="setting-copy"><label id="bumpModulesLabel" for="bumpModulesToggle">同时升级模块版本号</label><p>同步更新 modules 内的 version。</p></div><button class="ore-check" id="bumpModulesToggle" role="switch" aria-checked="false" aria-labelledby="bumpModulesLabel"></button></div>
+        <div class="setting-row"><div class="setting-copy"><label id="backupLabel" for="backupToggle">修改前备份 manifest.json</label><p>可从备份恢复上一次修改前的配置。</p></div><button class="ore-check" id="backupToggle" role="switch" aria-checked="true" aria-labelledby="backupLabel"></button></div>
+        <div class="settings-section">
+          <label class="setting-title" for="outDisplay">输出目录</label>
+          <div class="path-row"><div class="ore-field grow"><input type="text" id="outDisplay" readonly value="打包时选择保存位置"></div><button class="ore-btn" id="outChangeBtn">更改</button></div>
+          <div class="button-row"><button class="ore-btn small" id="openOutBtn">打开输出目录</button><button class="ore-btn small" id="restoreBtn" disabled>还原备份</button></div>
+        </div>
+        <div class="ore-banner"><span class="ore-icon icon-check" aria-hidden="true"></span><p>打包范围固定为 BP / RP。根目录的文档、工具、其他文件与非 BP / RP 包会自动排除。</p></div>
+      </section>
+      <section class="app-panel" id="panel-uuid" aria-labelledby="uuidTitle" hidden>
+        <div class="page-heading"><h2 id="uuidTitle">UUID 设置</h2><p>为行为包与资源包生成新的随机标识。</p></div>
+        <div class="settings-section">
+          <label class="setting-title" id="uuidFormatLabel">UUID 格式</label>
+          <button class="ore-btn ore-dropdown full-width" id="uuidDrop" aria-labelledby="uuidFormatLabel"><span class="dd-label"></span><span class="dd-arrow" aria-hidden="true"></span></button>
+          <p class="hint">标准格式使用带横线的 UUID v4。</p>
+        </div>
+        <div class="setting-row"><div class="setting-copy"><label id="uuidModulesLabel" for="uuidModulesToggle">刷新模块 UUID</label><p>同时更新 header 与每个模块的 UUID。</p></div><button class="ore-check" id="uuidModulesToggle" role="switch" aria-checked="true" aria-labelledby="uuidModulesLabel"></button></div>
+        <div class="ore-banner"><span class="ore-icon icon-info" aria-hidden="true"></span><p>点击左侧“随机刷新 UUID”执行。dependencies 中的外部依赖 UUID 会保留。</p></div>
+      </section>
+      <section class="app-panel log-panel" id="panel-log" aria-labelledby="logTitle" hidden>
+        <div class="page-heading"><h2 id="logTitle">操作日志</h2><p>查看打包结果、字段改动和错误信息。</p></div>
+        <div class="ore-scroll log-scroll" id="logScroll" tabindex="0" aria-label="操作日志内容"><div class="scroll-content log-content" id="logContent" role="log" aria-live="polite"></div></div>
+      </section>
+    </main>
+  </div>
+  <footer class="status-bar"><span class="status-indicator" aria-hidden="true"></span><span id="statusText" role="status">就绪 · 请先导入 Addon 文件夹</span><span class="foot-note">Minecraft Bedrock Addon</span></footer>
 </div>
-
-<!-- ======================= 弹窗 ======================= -->
 <div class="ore-overlay" id="overlay">
-  <div class="ore-popup" role="dialog" aria-modal="true" aria-labelledby="popupTitle">
-    <button class="ore-cross" id="popupCross" data-tooltip="关闭"></button>
-    <h3 id="popupTitle">提示</h3>
+  <div class="ore-popup" role="dialog" aria-modal="true" aria-labelledby="popupTitle" tabindex="-1">
+    <div class="popup-header"><h3 id="popupTitle">提示</h3><button class="ore-cross" id="popupCross" aria-label="关闭对话框"></button></div>
     <p id="popupBody"></p>
     <pre id="popupViewer" style="display:none;"></pre>
-    <div class="popup-actions">
-      <button class="ore-btn small" id="popupOk">确定</button>
-      <button class="ore-btn small" id="popupCancel">取消</button>
-    </div>
+    <div class="popup-actions"><button class="ore-btn primary" id="popupOk">确定</button><button class="ore-btn" id="popupCancel">取消</button></div>
   </div>
 </div>
-
-<div class="ore-tooltip" id="tooltip"></div>
-<div id="toasts"></div>
-
+<div class="ore-tooltip" id="tooltip" role="tooltip"></div>
+<div id="toasts" role="status" aria-live="polite"></div>
 <script src="js/core.js"></script>
 <script src="js/oreui.js"></script>
 <script src="js/app.js"></script>

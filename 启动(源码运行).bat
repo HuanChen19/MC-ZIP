@@ -14,4 +14,4 @@ if not defined PY (
   set "PY=python"
 )
 
-start "" "%PY%" "%~dp0addon_packer.py"
+start "" "%PY%" "%~dp0mczip_web.py" %*

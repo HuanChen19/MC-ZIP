@@ -26,6 +26,7 @@ import tkinter as tk
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import addon_config  # noqa: E402
 import addon_core as core  # noqa: E402
+import mczip_web  # noqa: E402
 
 APP_TITLE = "MC-ZIP"
 APP_SUBTITLE = "Minecraft 基岩版 Addon 打包工具 · 一键打包 / 版本号自增 / UUID 随机刷新"
@@ -155,7 +156,7 @@ class AddonPackerApp:
         self.var_bump_modules = tk.BooleanVar(value=bool(opts.get("bump_modules", False)))
         self.var_uuid_modules = tk.BooleanVar(value=bool(opts.get("uuid_modules", True)))
         self.var_backup = tk.BooleanVar(value=bool(opts.get("backup", True)))
-        self.var_only_bp_rp = tk.BooleanVar(value=bool(opts.get("only_bp_rp", True)))
+        self.var_only_bp_rp = tk.BooleanVar(value=True)
         self.var_auto_load = tk.BooleanVar(value=bool(opts.get("auto_load_last", True)))
 
         self._build_style()
@@ -368,7 +369,7 @@ class AddonPackerApp:
         self.cmb_uuid = ttk.Combobox(opt, textvariable=self.var_uuid_style, state="readonly",
                                      values=["带横线（标准格式）", "无横线（32 位）"], width=17)
         self.cmb_uuid.grid(row=0, column=5, padx=(0, 22))
-        self.chk_bp_rp = ttk.Checkbutton(opt, text="只处理 BP / RP（打包 · 版本 · UUID）",
+        self.chk_bp_rp = ttk.Checkbutton(opt, text="仅处理 BP / RP（固定范围）", state="disabled",
                                          variable=self.var_only_bp_rp,
                                          command=self._on_filter_changed)
         self.chk_bp_rp.grid(row=0, column=6)
@@ -584,7 +585,7 @@ class AddonPackerApp:
         self.var_status.set(text)
 
     def _apply_state(self) -> None:
-        enabled = bool(self.packs) and not self.busy
+        enabled = any(p.is_bp_rp for p in self.packs) and not self.busy
         for btn in (self.btn_pack, self.btn_uuid, self.btn_restore):
             btn.configure(state="normal" if enabled else "disabled")
         has_out = bool(self.output_dir) and Path(self.output_dir).is_dir()
@@ -671,7 +672,8 @@ class AddonPackerApp:
         self._apply_state()
 
     def _on_filter_changed(self) -> None:
-        """切换「只打包 BP / RP」后重绘列表。"""
+        """兼容旧调用，但不允许解除 BP/RP 限制。"""
+        self.var_only_bp_rp.set(True)
         self._render_table()
         if self.packs:
             included, excluded = core.select_packs(
@@ -991,10 +993,13 @@ def detect_dpi_scale() -> float:
 
 
 def main(argv=None) -> int:
+    args = list(sys.argv[1:] if argv is None else argv)
+    if "--tkinter" not in args:
+        return mczip_web.main(args)
+    args.remove("--tkinter")
     scale = detect_dpi_scale()
 
     # 支持命令行 / 拖到 exe 图标上传入文件夹路径：直接预加载
-    args = list(sys.argv[1:] if argv is None else argv)
     preselect = None
     for arg in args:
         candidate = Path(arg.strip('"'))

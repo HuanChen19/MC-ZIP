@@ -48,7 +48,7 @@ const Bridge = {
     if (isDict) payload = first;
     else if (first !== undefined) {
       // 单值参数：按方法名推断关键字名
-      const keyByMethod = { import_folder: "folder" };
+      const keyByMethod = { import_folder: "folder", get_manifest_text: "index" };
       payload = { [keyByMethod[name] || "value"]: first };
     }
     if (payload) {
@@ -65,6 +65,7 @@ const Bridge = {
 };
 
 async function detectBackend() {
+  if (new URLSearchParams(location.search).get("demo") === "1") return;
   if (await waitBridge()) {
     Bridge.backend = "bridge";
     Bridge.available = true;
@@ -98,7 +99,9 @@ let options = (() => {
   try { return { ...OPTION_DEFAULTS, ...JSON.parse(localStorage.getItem("mczip-options") || "{}") }; }
   catch (e) { return { ...OPTION_DEFAULTS }; }
 })();
+options.only_bp_rp = true;
 function persistOptions() {
+  options.only_bp_rp = true;
   if (Bridge.available) Bridge.call("set_options", options);
   else localStorage.setItem("mczip-options", JSON.stringify(options));
 }
@@ -122,6 +125,7 @@ function log(message = "", tag = "info") {
   line.className = "log-line " + tag;
   line.textContent = message || " ";
   box.appendChild(line);
+  $("#logCount").textContent = String(box.childElementCount);
   const sc = $("#logScroll");
   if (sc && sc._scrollToBottom) sc._scrollToBottom();
 }
@@ -133,30 +137,54 @@ function setStatus(text) { $("#statusText").textContent = text; }
  * ------------------------------------------------------------------ */
 function renderRows(rows, summary) {
   state.packs = rows || [];
+  $("#packCount").textContent = String(state.packs.filter(p => p.packed).length);
   const tbody = $("#packRows");
   tbody.innerHTML = "";
   if (!state.packs.length) {
-    $("#listSummary").textContent = "尚未导入";
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    empty.innerHTML = '<span class="ore-icon icon-package" aria-hidden="true"></span><strong>准备打包你的 Addon</strong><p>选择包含行为包与资源包的文件夹。根目录的其他文件和文件夹不会进入压缩包。</p>';
+    tbody.appendChild(empty);
+    $("#listSummary").textContent = summary || "尚未导入 Addon";
     applyState();
     return;
   }
   state.packs.forEach((row, i) => {
     const tr = document.createElement("div");
-    tr.className = "pack-row" + (row.packed ? "" : " skipped") + (i === 0 ? " sel" : "");
+    tr.className = "pack-row" + (row.kind === "资源包" ? " rp" : "") + (row.packed ? "" : " skipped") + (i === 0 ? " sel" : "");
     tr.dataset.index = i;
-    [row.name, row.packed ? "打包" : "跳过", row.kind, row.version, row.uuid, String(row.modules), row.rel]
-      .forEach((text, ci) => {
-        const td = document.createElement("span");
-        td.className = "pack-cell c" + ci;
-        td.textContent = text;
-        td.title = text;
-        tr.appendChild(td);
-      });
+    tr.tabIndex = 0;
+    tr.setAttribute("role", "button");
+    tr.setAttribute("aria-label", `${row.name}, ${row.kind}, ${row.packed ? "将打包" : "已排除"}, 查看 manifest.json`);
+    const tile = document.createElement("span");
+    tile.className = "pack-tile";
+    tile.textContent = row.kind === "资源包" ? "RP" : row.kind.includes("行为包") ? "BP" : "—";
+    tile.setAttribute("aria-hidden", "true");
+    const details = document.createElement("div");
+    details.className = "pack-details";
+    for (const [className, text] of [
+      ["pack-name", row.name],
+      ["pack-meta", `${row.kind} · v${row.version} · ${row.modules} 个模块`],
+      ["pack-uuid", `UUID: ${row.uuid}`],
+      ["pack-meta", `路径: ${row.rel}`],
+    ]) {
+      const item = document.createElement("span");
+      item.className = className;
+      item.textContent = text;
+      details.appendChild(item);
+    }
+    const packed = document.createElement("span");
+    packed.className = "pack-state";
+    packed.textContent = row.packed ? "✓ 将打包" : "已排除";
+    tr.append(tile, details, packed);
     tr.addEventListener("click", () => {
       $$(".pack-row").forEach(r => r.classList.remove("sel"));
       tr.classList.add("sel");
     });
     tr.addEventListener("dblclick", () => showManifest(i));
+    tr.addEventListener("keydown", e => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); showManifest(i); }
+    });
     tbody.appendChild(tr);
   });
   $("#listSummary").textContent = summary || "";
@@ -197,11 +225,15 @@ function outPlaceholder() {
 }
 
 function applyState() {
-  const enabled = state.packs.length > 0 && !state.busy;
+  const enabled = state.packs.some(p => p.packed) && !state.busy;
   $("#packBtn").disabled = !enabled;
   $("#uuidBtn").disabled = !enabled;
   $("#restoreBtn").disabled = !enabled;
   $("#openOutBtn").disabled = state.busy;
+  $("#packBtn").textContent = options.pack_with_bump ? "打包并升级版本" : "打包 Addon";
+  for (const sel of ["#browseBtn", "#recentBtn", "#rescanBtn", "#outChangeBtn", "#partDrop", "#modeDrop", "#uuidDrop", ".ore-check"]) {
+    $$(sel).forEach(el => { el.disabled = state.busy; });
+  }
 }
 function setBusy(busy, text = "") {
   state.busy = busy;
@@ -271,7 +303,8 @@ async function onPackage() {
     if (p.packs) renderRows(p.packs, p.summary);
     if (p.outputDir) $("#outDisplay").value = p.outputDir;
     if (p.status) setStatus(p.status);
-    if (p.ok) ORE.toast("打包完成");
+    ORE.toast(p.ok ? "打包完成" : "打包失败, 请查看操作日志");
+    if (!p.ok) showPanel("log");
   } catch (e) {
     log("操作失败：" + e.message, "err");
     setStatus("操作失败");
@@ -289,7 +322,8 @@ async function onRefreshUuid() {
     printLogs(p.logs);
     if (p.packs) renderRows(p.packs, p.summary);
     if (p.status) setStatus(p.status);
-    if (p.ok) ORE.toast("UUID 已刷新");
+    ORE.toast(p.ok ? "UUID 已刷新" : "操作失败, 请查看操作日志");
+    if (!p.ok) showPanel("log");
   } catch (e) {
     log("操作失败：" + e.message, "err");
     setStatus("操作失败");
@@ -383,17 +417,6 @@ function bindOptions() {
   });
 
   const binds = [
-    ["#onlyBpRpToggle", "only_bp_rp", async on => {
-      if (Bridge.available) {
-        const r = await Bridge.call("mark_rows", on);
-        renderRows(r.packs, r.summary);
-      } else if (state.fsPacks.length) {
-        webRenderTable();
-        const { excluded } = core.selectPacks(state.fsPacks, on);
-        if (excluded.length) log(`已排除 ${excluded.length} 个非 BP/RP 包：` + excluded.map(p => p.relName).join("、"), "warn");
-        else log("当前所有包都是 BP / RP，无需排除。", "muted");
-      }
-    }],
     ["#bumpToggle", "pack_with_bump"],
     ["#bumpModulesToggle", "bump_modules"],
     ["#uuidModulesToggle", "uuid_modules"],
@@ -407,6 +430,7 @@ function bindOptions() {
       requestAnimationFrame(() => {
         options[key] = ORE.getToggle(el);
         persistOptions();
+        applyState();
         if (extra) extra(options[key]);
       });
     });
@@ -420,10 +444,24 @@ function bindOptionsRefresh() {
   const MODE = core.PACK_MODES[options.pack_mode];
   if (MODE) $("#modeDrop .dd-label").textContent = MODE;
   $("#uuidDrop .dd-label").textContent = options.uuid_style === "hex" ? "无横线（32 位）" : "带横线（标准格式）";
-  const map = [["#onlyBpRpToggle", "only_bp_rp"], ["#bumpToggle", "pack_with_bump"],
+  const map = [["#bumpToggle", "pack_with_bump"],
                ["#bumpModulesToggle", "bump_modules"], ["#uuidModulesToggle", "uuid_modules"],
                ["#backupToggle", "backup"], ["#autoLoadToggle", "auto_load_last"]];
   for (const [sel, key] of map) ORE.setToggle($(sel), !!options[key]);
+  applyState();
+}
+
+function showPanel(name) {
+  ORE.closeMenu();
+  $$(".app-panel").forEach(panel => { panel.hidden = panel.id !== `panel-${name}`; });
+  $$(".ore-nav").forEach(button => {
+    const selected = button.dataset.panel === name;
+    button.classList.toggle("sel", selected);
+    if (selected) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  });
+  $(".app-main").scrollTop = 0;
+  if (name === "log") $("#logScroll")._scrollToBottom();
 }
 
 /* ==========================================================================
@@ -635,6 +673,7 @@ async function webDoRefreshUuid() {
 
   const packs = await core.loadAddon(state.fsRoot);
   const { included, excluded } = core.selectPacks(packs, onlyBpRp);
+  if (!included.length) throw new core.ManifestError("没有可处理的 BP / RP 包。");
   logs.push([`处理范围：${onlyBpRp ? "仅 BP / RP" : "全部检测到的包"}（${included.length} 个包）`]);
   if (excluded.length) logs.push(["  已跳过：" + excluded.map(p => `${p.relName}（${p.kind}）`).join("、"), "warn"]);
 
@@ -653,7 +692,7 @@ async function webDoRefreshUuid() {
 
 async function webRestoreBackup() {
   const candidates = [];
-  for (const pack of state.fsPacks) {
+  for (const pack of core.selectPacks(state.fsPacks).included) {
     try { candidates.push({ pack, bak: await pack.dirHandle.getFileHandle(core.BACKUP_NAME) }); }
     catch (e) { /* 无备份 */ }
   }
@@ -803,8 +842,19 @@ async function boot() {
   ORE.initTooltip();
   ORE.initScrollers();
   ORE.initToggles();
+  $$(".ore-nav").forEach(button => button.addEventListener("click", () => showPanel(button.dataset.panel)));
+  $("#homeBtn").addEventListener("click", () => showPanel("general"));
+  renderRows([], "");
 
   await detectBackend();
+  if (Bridge.available) {
+    $("#pathDisplay").readOnly = false;
+    $("#pathDisplay").addEventListener("keydown", async event => {
+      if (event.key === "Enter" && !state.busy && event.target.value.trim()) {
+        applyScan(await Bridge.call("import_folder", event.target.value.trim()));
+      }
+    });
+  }
   window.MCZIP_BOOT_MODE = Bridge.backend;
   window.MCZIP_BACKEND = Bridge.backend;
 
@@ -830,6 +880,7 @@ async function boot() {
   if (Bridge.available) {
     const st = await Bridge.call("get_state");
     options = { ...OPTION_DEFAULTS, ...(st.options || {}) };
+    options.only_bp_rp = true;
     bindOptionsRefresh();
     if (st.recents.length) {
       log(`已记住 ${st.recents.length} 个最近打开的项目，可在「最近打开」里选择；最近一个：${st.recents[0].path}`, "muted");

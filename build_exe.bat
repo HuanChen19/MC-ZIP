@@ -40,10 +40,11 @@ set "ICONARG="
 if exist "%~dp0app.ico" set "ICONARG=--icon "%~dp0app.ico" --add-data "%~dp0app.ico;.""
 "%PY%" -m PyInstaller --noconfirm --clean --onefile --windowed ^
   --name "MC-ZIP" %ICONARG% ^
+  --add-data "%~dp0frontend;frontend" ^
   --distpath "%~dp0dist" ^
   --workpath "%~dp0.build\work" ^
   --specpath "%~dp0.build" ^
-  "%~dp0addon_packer.py"
+  "%~dp0mczip_web.py"
 if errorlevel 1 (
   echo [错误] 打包失败。
   pause

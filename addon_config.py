@@ -164,6 +164,7 @@ class Config:
                 if key in options:
                     merged[key] = options[key]
         self.data["options"] = merged
+        self.data["options"]["only_bp_rp"] = True
 
     def save(self) -> bool:
         """写盘。成功返回 True。"""
@@ -252,3 +253,4 @@ class Config:
         for key in DEFAULT_OPTIONS:
             if key in mapping:
                 options[key] = mapping[key]
+        options["only_bp_rp"] = True

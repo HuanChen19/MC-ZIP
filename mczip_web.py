@@ -312,7 +312,7 @@ class BridgeApi:
         do_bump = bool(opts.get("pack_with_bump", True))
         bump_modules = bool(opts.get("bump_modules", False))
         backup = bool(opts.get("backup", True))
-        only_bp_rp = bool(opts.get("only_bp_rp", True))
+        only_bp_rp = True
         title = "打包并升级版本号" if do_bump else "打包（不修改版本号）"
 
         logs = [[f"—— {title} ——", "head"]]
@@ -375,12 +375,14 @@ class BridgeApi:
         include_modules = bool(opts.get("uuid_modules", True))
         backup = bool(opts.get("backup", True))
         style = "hex" if str(opts.get("uuid_style")) == "hex" else "hyphen"
-        only_bp_rp = bool(opts.get("only_bp_rp", True))
+        only_bp_rp = True
 
         logs = [["—— 随机刷新 UUID ——", "head"]]
         try:
             packs = core.load_addon(root)
             included, excluded = core.select_packs(packs, only_bp_rp=only_bp_rp, root=root)
+            if not included:
+                raise core.ManifestError("没有可处理的 BP / RP 包。")
             logs.append([f"处理范围：{'仅 BP / RP' if only_bp_rp else '全部检测到的包'}（{len(included)} 个包）"])
             if excluded:
                 logs.append(["  已跳过：" + "、".join(f"{p.root.name}（{p.kind}）" for p in excluded), "warn"])
@@ -412,7 +414,7 @@ class BridgeApi:
         if not self.addon_root:
             return {"ok": False, "logs": []}
         candidates = []
-        for pack in self.packs:
+        for pack in core.select_packs(self.packs, root=self.addon_root)[0]:
             backup = pack.manifest_path.with_name(core.BACKUP_NAME)
             if backup.is_file():
                 candidates.append((pack, backup))
@@ -434,7 +436,7 @@ class BridgeApi:
 
     def list_backups(self) -> dict:
         items = []
-        for pack in self.packs:
+        for pack in core.select_packs(self.packs, root=self.addon_root)[0]:
             if pack.manifest_path.with_name(core.BACKUP_NAME).is_file():
                 items.append(f"{pack.root.name}/manifest.json")
         return {"items": items}
@@ -494,7 +496,7 @@ def make_server(api: "BridgeApi", frontend_dir: Path) -> Tuple["ThreadingHTTPSer
                     result = method()
                 elif len(named) == 1:
                     pname = named[0].name
-                    if pname in payload and isinstance(payload[pname], (dict, list)):
+                    if pname in payload:
                         result = method(**{pname: payload[pname]})
                     elif pname in ("folder", "name", "path", "text") and len(payload) == 1:
                         result = method(**payload)

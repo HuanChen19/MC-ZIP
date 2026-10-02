@@ -39,7 +39,7 @@ echo [2/2] 打包单文件 exe ...
 set "ICONARG="
 if exist "%~dp0app.ico" set "ICONARG=--icon "%~dp0app.ico""
 "%PY%" -m PyInstaller --noconfirm --clean --onefile --windowed ^
-  --name "MC-ZIP" %ICONARG% ^
+  --name "MC-ZIP-web" %ICONARG% ^
   --add-data "%~dp0frontend;frontend" ^
   --add-data "%~dp0app.ico;." ^
   --collect-submodules webview ^
@@ -55,7 +55,7 @@ if errorlevel 1 (
 
 echo.
 echo ============================================
-echo   完成！产物: %~dp0dist-web\MC-ZIP.exe
+echo   完成！产物: %~dp0dist-web\MC-ZIP-web.exe
 echo ============================================
 echo.
 pause

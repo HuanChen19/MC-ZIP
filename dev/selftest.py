@@ -143,6 +143,9 @@ def build_fixture() -> Path:
     (root / "docs" / "说明.md").write_text("# 文档\n", encoding="utf-8")
     (root / "tools" / "build.py").write_text("print('build')\n", encoding="utf-8")
     (root / "readme.txt").write_text("readme\n", encoding="utf-8")
+    example = root / "docs" / "ExampleBP"
+    example.mkdir(parents=True, exist_ok=True)
+    (example / "manifest.json").write_text(BP_MANIFEST, encoding="utf-8")
 
     # 应当被排除的内容
     (bp / "__pycache__" / "main.cpython-310.pyc").write_bytes(b"junk")
@@ -184,11 +187,14 @@ def main() -> int:
           str([p.root.name for p in excluded]))
     check("排除的是皮肤包", {p.root.name for p in included} == {"MyAddon_BP", "MyAddon_RP"},
           str({p.root.name for p in included}))
+    check("不扫描 docs 内的 BP 示例包", not any(p.root.name == "ExampleBP" for p in packs))
+    nested = core.load_pack(root / "docs" / "ExampleBP")
+    nested_in, nested_out = core.select_packs([nested], root=root)
+    check("直接传入嵌套 BP 也被排除", not nested_in and nested_out == [nested])
     all_in, none_out = core.select_packs(packs, only_bp_rp=False, root=root)
-    check("关闭筛选时全部保留", len(all_in) == 3 and not none_out)
+    check("旧 False 选项也只能保留 BP/RP", len(all_in) == 2 and none_out == [skin])
     single_only, single_excluded = core.select_packs([skin], only_bp_rp=True, root=skin.root)
-    check("单包模式不做筛选（用户已指定目录）",
-          len(single_only) == 1 and not single_excluded)
+    check("单包模式也排除非 BP/RP", not single_only and single_excluded == [skin])
 
     print("== 3. 版本号递增 ==")
     rep_bp = core.bump_versions(bp, part="patch", include_modules=False, backup=True)
@@ -275,15 +281,15 @@ def main() -> int:
         check("包内 BP uuid 为刷新后的值", packed_bp["header"]["uuid"] == bp.pack_uuid)
         check("包内 BP description 原样", packed_bp["header"]["description"] == "中文描述，需要保持原样 \n 与转义")
 
-    print("== 5b. 关闭筛选时打包全部类型 ==")
+    print("== 5b. 旧关闭筛选选项不能放宽打包范围 ==")
     all_dir = BASE / "dist_all"
     result_all = core.build_package(root, packs, all_dir, mode="auto", only_bp_rp=False)
-    check("关闭筛选后无排除项", not result_all.excluded, str(result_all.excluded))
+    check("旧 False 选项依然排除皮肤包", result_all.excluded == ["MyAddon_Skin"], str(result_all.excluded))
     check("关闭筛选产物名正确", result_all.archives[0].name == "MyAddon_v1.3.0.mcaddon",
           result_all.archives[0].name)
     with zipfile.ZipFile(result_all.archives[0]) as zf:
         names_all = zf.namelist()
-        check("关闭筛选后含皮肤包", "MyAddon_Skin/manifest.json" in names_all)
+        check("旧 False 选项不包含皮肤包", "MyAddon_Skin/manifest.json" not in names_all)
         check("关闭筛选仍含 BP/RP", "MyAddon_BP/manifest.json" in names_all)
         check("关闭筛选也不含 docs", not any(n.startswith("docs") for n in names_all))
 
@@ -310,16 +316,16 @@ def main() -> int:
     with zipfile.ZipFile(single_result.archives[0]) as zf:
         check("mcpack 的 manifest 在根目录", "manifest.json" in zf.namelist(), str(zf.namelist()[:5]))
 
-    print("== 6b. 单包模式即使是皮肤包也不过滤 ==")
+    print("== 6b. 拒绝直接打包单个皮肤包 ==")
     skin_dir = BASE / "StandaloneSkin"
     make_copy(root / "MyAddon_Skin", skin_dir)
     skin_packs = core.load_addon(skin_dir)
-    skin_result = core.build_package(skin_dir, skin_packs, out_dir, mode="auto",
-                                     base_name="StandaloneSkin")
-    check("皮肤包单包也能打包", skin_result.archives[0].suffix == ".mcpack"
-          and not skin_result.excluded, str(skin_result.archives))
-    check("皮肤包产物名正确", skin_result.archives[0].name == "StandaloneSkin_v1.0.0.mcpack",
-          skin_result.archives[0].name)
+    for mode in ("auto", "mcaddon", "mcpack", "zip"):
+        try:
+            core.build_package(skin_dir, skin_packs, out_dir, mode=mode, only_bp_rp=False)
+            check("单个皮肤包被拒绝: " + mode, False)
+        except core.ManifestError:
+            check("单个皮肤包被拒绝: " + mode, True)
 
     print("== 7. 重复打包不污染 ==")
     again = core.build_package(root, packs, out_dir, mode="auto")
@@ -366,7 +372,7 @@ def main() -> int:
     check("重新读回输出目录", reloaded.output_dir_for(a) == r"D:\out\demo",
           str(reloaded.output_dir_for(a)))
     check("重新读回选项", reloaded.get_option("version_part") == "minor"
-          and reloaded.get_option("only_bp_rp") is False
+          and reloaded.get_option("only_bp_rp") is True
           and reloaded.get_option("backup") is False, str(reloaded.options))
     check("未知选项不会丢失默认值", reloaded.get_option("uuid_modules") is True)
 
