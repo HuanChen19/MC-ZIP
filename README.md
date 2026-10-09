@@ -59,12 +59,20 @@ Python 负责本地文件操作, 不需要前端构建工具或联网加载资�
 所选目录自身有 manifest 时按单包处理. 否则仅检查直属子目录中的 manifest.
 根目录的散落文件、docs、tools、截图以及这些目录里的嵌套示例包不会进入产物.
 
+打包前检查所有待打包的包, 行为包必须直接包含 `entities` 文件夹,
+资源包必须直接包含 `textures` 或 `shader` 文件夹. 同时声明两种类型的包
+必须满足两组要求. 同名文件、嵌套目录和符号链接不能代替这些文件夹.
+缺少必需目录时停止打包并列出问题, 不修改版本号或清理备份.
+这些文件夹即使为空也会保留在压缩包中, 且不能作为被排除的输出目录.
+
 例如:
 
 ```text
 MyAddon/
 ├── BP/manifest.json         打包
+├── BP/entities/             必需, 空目录也保留
 ├── RP/manifest.json         打包
+├── RP/textures/             必需, 也可使用 shader/
 ├── Skin/manifest.json       排除
 ├── docs/ExampleBP/          排除
 ├── tools/                   排除
@@ -90,6 +98,9 @@ MyAddon/
 ## 文件修改与配置
 
 - manifest 修改前可备份为 `manifest.json.bak`, 随后使用原子写入.
+- 打包产物全部写入成功后, 自动清理 BP/RP 内的 `manifest.json.bak`,
+  包括以前留下的备份. 打包失败或单独刷新 UUID 时保留备份供恢复.
+- 备份清理失败会记录警告, 已生成的打包产物仍可使用.
 - 保留键顺序、缩进、BOM 与末尾换行; 中文保持可读.
 - UUID 操作刷新 header 与可选的 modules; dependencies 中的 UUID 保留.
 - Python 和浏览器模式共享相同的 BP/RP 过滤与输出结构规则.
@@ -127,7 +138,8 @@ pwsh -File dev/verify_exe.ps1
 
 网页后端自测建议使用独立的 `MC_ZIP_CONFIG`, 避免改变最近项目记录.
 核心测试包含真实压缩包内容、BP/RP 强制过滤、根目录杂项排除、
-嵌套示例包排除、单包结构、旧配置迁移及版本和 UUID 修改.
+嵌套示例包排除、必需目录校验、空目录保留、shader 目录支持、
+单包结构、旧配置迁移及版本和 UUID 修改.
 浏览器核心测试额外验证 ZIP CRC 与中文文件内容.
 
 `build_exe_web.bat` 输出 `dist-web/MC-ZIP-web.exe`.

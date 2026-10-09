@@ -388,6 +388,33 @@ const MCZIP_CORE = (() => {
     return isRootItself(null, packs) ? "mcpack" : "mcaddon";
   }
 
+  const REQUIRED_PACK_DIR_NAMES = new Set(["entities", "textures", "shader"]);
+
+  /** 在版本修改和产物写入前检查所有待打包 BP/RP. */
+  async function validatePackStructure(packs, { outDirHandle = null } = {}) {
+    const problems = [];
+    for (const pack of packs) {
+      const directories = new Set();
+      const excludesRoot = outDirHandle && pack.dirHandle.isSameEntry
+        && await pack.dirHandle.isSameEntry(outDirHandle);
+      for await (const [name, handle] of pack.dirHandle.entries()) {
+        if (excludesRoot || handle.kind !== "directory" || !REQUIRED_PACK_DIR_NAMES.has(name)) continue;
+        if (outDirHandle && handle.isSameEntry && await handle.isSameEntry(outDirHandle)) continue;
+        directories.add(name);
+      }
+      if (["bp", "bp_rp"].includes(pack.category) && !directories.has("entities")) {
+        problems.push(`[${pack.relName}] 行为包必须包含 entities 文件夹`);
+      }
+      if (["rp", "bp_rp"].includes(pack.category) && !directories.has("textures") && !directories.has("shader")) {
+        problems.push(`[${pack.relName}] 资源包必须包含 textures 或 shader 文件夹`);
+      }
+    }
+    if (problems.length) {
+      throw new ManifestError("打包目录校验失败:\n" + problems.join("\n")
+        + "\n请确认这些文件夹直接位于包目录内, 且未用作输出目录.");
+    }
+  }
+
   /** 多包取最高版本号作为文件名后缀。 */
   function versionTag(packs) {
     const versions = packs.filter(p => p.version.length).map(p => p.version);
@@ -408,7 +435,7 @@ const MCZIP_CORE = (() => {
    * ------------------------------------------------------------------ */
   async function collectEntries(packEntries, basePrefix, { outDirHandle = null, skipNames = new Set() } = {}) {
     const entries = [];
-    async function walk(dir, prefix) {
+    async function walk(dir, prefix, isPackRoot = false) {
       const items = [];
       for await (const [name, handle] of dir.entries()) items.push([name, handle]);
       items.sort((a, b) => a[0].localeCompare(b[0]));
@@ -418,6 +445,9 @@ const MCZIP_CORE = (() => {
           if (SKIP_DIR_NAMES.has(lowered) || name.startsWith(".")) continue;
           if (outDirHandle && handle.isSameEntry) {
             try { if (await handle.isSameEntry(outDirHandle)) continue; } catch (e) {}
+          }
+          if (isPackRoot && REQUIRED_PACK_DIR_NAMES.has(name)) {
+            entries.push({ arcname: prefix + name + "/", directory: true });
           }
           await walk(handle, prefix + name + "/");
         } else {
@@ -430,7 +460,7 @@ const MCZIP_CORE = (() => {
     }
     for (const p of packEntries) {
       // basePrefix：arcname 的前缀（mcaddon: "包目录/"，mcpack/zip 视结构而定）
-      await walk(p.handle, basePrefix(p));
+      await walk(p.handle, basePrefix(p), true);
     }
     entries.sort((a, b) => a.arcname.localeCompare(b.arcname));
     return entries;
@@ -514,7 +544,8 @@ const MCZIP_CORE = (() => {
       const rec = [
         u32(0x02014b50), u16(20), u16(20), u16(c.flags), u16(c.method), u16(c.time), u16(c.date),
         u32(c.crc), u32(c.csize), u32(c.usize),
-        u16(c.nameBytes.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(c.localOffset),
+        u16(c.nameBytes.length), u16(0), u16(0), u16(0), u16(0),
+        u32(c.nameBytes[c.nameBytes.length - 1] === 47 ? 0x10 : 0), u32(c.localOffset),
         c.nameBytes,
       ];
       for (const r of rec) chunks.push(r);
@@ -537,6 +568,22 @@ const MCZIP_CORE = (() => {
   /* ------------------------------------------------------------------ *
    * 打包总流程（与 build_package 对应；产出内存 ZIP，由调用方落地）
    * ------------------------------------------------------------------ */
+  async function cleanupManifestBackups(packs) {
+    const logs = [];
+    for (const pack of selectPacks(packs).included) {
+      try {
+        await pack.dirHandle.getFileHandle(BACKUP_NAME);
+        await pack.dirHandle.removeEntry(BACKUP_NAME);
+        logs.push([`  [${pack.relName}] 已清理备份 -> ${BACKUP_NAME}`, "muted"]);
+      } catch (e) {
+        if (e.name !== "NotFoundError") {
+          logs.push([`  [${pack.relName}] 备份清理失败: ${e.message}`, "warn"]);
+        }
+      }
+    }
+    return logs;
+  }
+
   async function buildPackage(rootHandle, rootName, packs, { mode = "auto", onlyBpRp = true, baseName = null, outDirHandle = null } = {}) {
     const { included, excluded } = selectPacks(packs, onlyBpRp);
     if (!included.length) {
@@ -549,6 +596,7 @@ const MCZIP_CORE = (() => {
       throw new ManifestError("没有可打包的包。");
     }
 
+    await validatePackStructure(included, { outDirHandle });
     const packName = safeFilename(baseName || rootName, "addon");
     const resolvedMode = resolveMode(mode, included);
     const single = isRootItself(null, included);
@@ -593,6 +641,10 @@ const MCZIP_CORE = (() => {
       if (!entries.length) throw new ManifestError(`没有可打包的文件：${job.outName}`);
       const zipEntries = [];
       for (const e of entries) {
+        if (e.directory) {
+          zipEntries.push({ name: e.arcname, bytes: new Uint8Array(0) });
+          continue;
+        }
         const file = await e.fileHandle.getFile();
         zipEntries.push({
           name: e.arcname,
@@ -602,7 +654,7 @@ const MCZIP_CORE = (() => {
       }
       const zipBytes = await buildZip(zipEntries);
       archives.push({ name: job.outName, bytes: zipBytes });
-      fileCount += zipEntries.length;
+      fileCount += entries.filter(e => !e.directory).length;
     }
 
     const notes = ["已忽略 备份文件 / 缓存目录 / 隐藏目录"];
@@ -626,8 +678,8 @@ const MCZIP_CORE = (() => {
     normalizeVersion, bumpVersion, generateUuid,
     PackInfo, loadPack, loadAddon, findPackRoots,
     requireHeader, bumpVersions, refreshUuids,
-    selectPacks, resolveMode, versionTag,
-    collectEntries, crc32, buildZip, buildPackage,
+    selectPacks, resolveMode, versionTag, validatePackStructure,
+    collectEntries, crc32, buildZip, buildPackage, cleanupManifestBackups,
   };
 })();
 

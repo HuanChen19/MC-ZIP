@@ -77,13 +77,13 @@
         </div>
         <div class="setting-row"><div class="setting-copy"><label id="bumpLabel" for="bumpToggle">打包时升级版本号</label><p>关闭后, 直接打包当前版本。</p></div><button class="ore-check" id="bumpToggle" role="switch" aria-checked="true" aria-labelledby="bumpLabel"></button></div>
         <div class="setting-row"><div class="setting-copy"><label id="bumpModulesLabel" for="bumpModulesToggle">同时升级模块版本号</label><p>同步更新 modules 内的 version。</p></div><button class="ore-check" id="bumpModulesToggle" role="switch" aria-checked="false" aria-labelledby="bumpModulesLabel"></button></div>
-        <div class="setting-row"><div class="setting-copy"><label id="backupLabel" for="backupToggle">修改前备份 manifest.json</label><p>可从备份恢复上一次修改前的配置。</p></div><button class="ore-check" id="backupToggle" role="switch" aria-checked="true" aria-labelledby="backupLabel"></button></div>
+        <div class="setting-row"><div class="setting-copy"><label id="backupLabel" for="backupToggle">修改前备份 manifest.json</label><p>打包成功后自动清理备份; 打包失败或单独刷新 UUID 后保留, 可用于恢复。</p></div><button class="ore-check" id="backupToggle" role="switch" aria-checked="true" aria-labelledby="backupLabel"></button></div>
         <div class="settings-section">
           <label class="setting-title" for="outDisplay">输出目录</label>
           <div class="path-row"><div class="ore-field grow"><input type="text" id="outDisplay" readonly value="打包时选择保存位置"></div><button class="ore-btn" id="outChangeBtn">更改</button></div>
           <div class="button-row"><button class="ore-btn small" id="openOutBtn">打开输出目录</button><button class="ore-btn small" id="restoreBtn" disabled>还原备份</button></div>
         </div>
-        <div class="ore-banner"><span class="ore-icon icon-check" aria-hidden="true"></span><p>打包范围固定为 BP / RP。根目录的文档、工具、其他文件与非 BP / RP 包会自动排除。</p></div>
+        <div class="ore-banner"><span class="ore-icon icon-check" aria-hidden="true"></span><p>行为包必须包含 entities 文件夹, 资源包必须包含 textures 或 shader 文件夹. 根目录的文档、工具、其他文件与非 BP / RP 包会自动排除.</p></div>
       </section>
       <section class="app-panel" id="panel-uuid" aria-labelledby="uuidTitle" hidden>
         <div class="page-heading"><h2 id="uuidTitle">UUID 设置</h2><p>为行为包与资源包生成新的随机标识。</p></div>

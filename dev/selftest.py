@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import shutil
 import sys
+import tempfile
 import zipfile
 from pathlib import Path
 
@@ -124,7 +125,7 @@ def build_fixture() -> Path:
     rp = root / "MyAddon_RP"
     skin = root / "MyAddon_Skin"
 
-    for folder in (bp / "functions", bp / "scripts", rp / "textures" / "items",
+    for folder in (bp / "functions", bp / "scripts", bp / "entities", rp / "textures" / "items",
                    skin / "skin", bp / "__pycache__", bp / ".git",
                    root / "docs", root / "tools"):
         folder.mkdir(parents=True, exist_ok=True)
@@ -162,6 +163,7 @@ def make_copy(src: Path, dst: Path) -> Path:
 
 
 def main() -> int:
+    test_package_structure()
     print("== 1. 构造测试 Addon ==")
     root = build_fixture()
     print(f"  root = {root}")
@@ -403,6 +405,80 @@ def main() -> int:
         return 1
     print("全部通过")
     return 0
+
+
+def test_package_structure():
+    """从实际产物验证必需目录、错误拦截及文件统计."""
+    with tempfile.TemporaryDirectory(prefix="mczip-structure-test-") as directory:
+        base = Path(directory)
+        root = base / "Addon"
+        bp = root / "BP"
+        rp = root / "RP"
+        for pack_dir, manifest in ((bp, BP_MANIFEST), (rp, RP_MANIFEST)):
+            pack_dir.mkdir(parents=True)
+            (pack_dir / "manifest.json").write_text(manifest, encoding="utf-8")
+        (bp / "entities").mkdir()
+        (rp / "textures").mkdir()
+        (root / "readme.txt").write_text("excluded", encoding="utf-8")
+        packs = core.load_addon(root)
+        for resource_dir in ("textures", "shader"):
+            if resource_dir == "shader":
+                (rp / "textures").rename(rp / "shader")
+            for mode in ("auto", "mcaddon", "mcpack", "zip"):
+                result = core.build_package(root, packs, base / "out", mode=mode)
+                check("空目录不计入文件数: {} {}".format(resource_dir, mode), result.file_count == 2)
+                for archive_path in result.archives:
+                    with zipfile.ZipFile(archive_path) as archive:
+                        names = archive.namelist()
+                        if mode == "mcpack":
+                            expected = ["entities/"] if archive_path.name.startswith("BP_") else [resource_dir + "/"]
+                        else:
+                            expected = ["BP/entities/", "RP/" + resource_dir + "/"]
+                        check("保留必需目录: {} {}".format(resource_dir, archive_path.name),
+                              all(archive.getinfo(name).is_dir() for name in expected))
+                        check("产物根目录无杂项: " + archive_path.name, "readme.txt" not in names)
+
+        for pack_dir, required_name in ((bp, "entities"), (rp, "shader")):
+            required_dir = pack_dir / required_name
+            required_dir.rmdir()
+            for invalid_shape in ("missing", "file", "nested"):
+                if invalid_shape == "file":
+                    required_dir.write_text("not a directory", encoding="utf-8")
+                elif invalid_shape == "nested":
+                    (pack_dir / "nested" / required_name).mkdir(parents=True)
+                for mode in ("auto", "mcaddon", "mcpack", "zip"):
+                    output_dir = base / "invalid-output"
+                    try:
+                        core.build_package(root, packs, output_dir, mode=mode)
+                        check("拒绝无效必需目录", False, invalid_shape + " " + mode)
+                    except core.ManifestError as exc:
+                        check("拒绝无效必需目录: {} {} {}".format(pack_dir.name, invalid_shape, mode),
+                              pack_dir.name in str(exc) and not output_dir.exists())
+                if invalid_shape == "file":
+                    required_dir.unlink()
+                elif invalid_shape == "nested":
+                    (pack_dir / "nested" / required_name).rmdir()
+                    (pack_dir / "nested").rmdir()
+            required_dir.mkdir()
+
+        # 声明 BP/RP 的同一包必须同时满足两组目录要求.
+        mixed = core.load_pack(bp)
+        mixed.data["modules"].append({"type": "resources"})
+        mixed.sync()
+        try:
+            core.validate_pack_structure([mixed])
+            check("混合包须有资源目录", False)
+        except core.ManifestError as exc:
+            check("混合包须有资源目录", "textures" in str(exc))
+        (bp / "textures").mkdir()
+        core.validate_pack_structure([mixed])
+        check("混合包两组目录均齐全", True)
+        for output_dir in (bp / "entities", rp / "shader", root):
+            try:
+                core.build_package(root, packs, output_dir)
+                check("输出不能排除必需目录", False, str(output_dir))
+            except core.ManifestError:
+                check("输出不能排除必需目录: " + output_dir.name, True)
 
 
 if __name__ == "__main__":

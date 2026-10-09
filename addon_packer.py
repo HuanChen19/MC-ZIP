@@ -381,7 +381,7 @@ class AddonPackerApp:
                         variable=self.var_bump_modules).pack(side="left", padx=(16, 0))
         ttk.Checkbutton(opt2, text="刷新 modules 内 UUID",
                         variable=self.var_uuid_modules).pack(side="left", padx=(16, 0))
-        ttk.Checkbutton(opt2, text="修改前备份 manifest.json",
+        ttk.Checkbutton(opt2, text="修改前备份(打包成功清理)",
                         variable=self.var_backup).pack(side="left", padx=(16, 0))
 
         out_row = tk.Frame(action_body, bg=CARD)
@@ -888,6 +888,7 @@ class AddonPackerApp:
         def work():
             packs = core.load_addon(root)
             included, excluded = core.select_packs(packs, only_bp_rp=only_bp_rp, root=root)
+            core.validate_pack_structure(included, out_dir)
             old_versions = {str(p.root): p.display_version for p in included}
 
             if only_bp_rp:
@@ -913,6 +914,8 @@ class AddonPackerApp:
 
             result = core.build_package(root, packs, out_dir, mode=mode,
                                         only_bp_rp=only_bp_rp)
+            for message, tag in core.cleanup_manifest_backups(included, root=root):
+                self.log_line(message, tag)
 
             def finish():
                 self.packs = core.load_addon(root)

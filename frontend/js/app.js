@@ -628,6 +628,7 @@ async function webDoPackage() {
 
   const packs = await core.loadAddon(state.fsRoot);
   const { included, excluded } = core.selectPacks(packs, onlyBpRp);
+  await core.validatePackStructure(included, { outDirHandle: state.fsOut });
   const oldVersions = new Map(included.map(p => [p.relPath, p.displayVersion]));
   logs.push([onlyBpRp ? `打包范围：仅 BP / RP（${included.length} 个包）` : `打包范围：全部检测到的包（${included.length} 个）`]);
   if (excluded.length) logs.push(["  已排除：" + excluded.map(p => `${p.relName}（${p.kind}）`).join("、"), "warn"]);
@@ -652,6 +653,7 @@ async function webDoPackage() {
     archives.push(archive.name);
     logs.push([`  已生成：${archive.name}  (${(archive.bytes.length / 1024).toFixed(1)} KB)  ->  ${where}`, "ok"]);
   }
+  logs.push(...await core.cleanupManifestBackups(included));
   logs.push([`  共压缩 ${result.fileCount} 个文件`, "muted"], ["  " + result.skippedNote, "muted"]);
 
   state.fsPacks = await core.loadAddon(state.fsRoot);
@@ -784,6 +786,15 @@ class MemDir {
     return h;
   }
   async getDirectoryHandle(name) { const h = this.kids.get(name); if (!h) throw new Error("not found"); return h; }
+  async removeEntry(name) {
+    const h = this.kids.get(name);
+    if (!h || h.kind !== "file") {
+      const e = new Error(h ? "type mismatch" : "not found");
+      e.name = h ? "InvalidModificationError" : "NotFoundError";
+      throw e;
+    }
+    this.kids.delete(name);
+  }
   async queryPermission() { return "granted"; }
   async requestPermission() { return "granted"; }
   dir(name) { const d = new MemDir(name); this.kids.set(name, d); return d; }
@@ -800,12 +811,14 @@ function buildDemoAddon() {
     dependencies: [{ uuid: "33333333-3333-4333-8333-333333333333", version: [1, 0, 0] }],
   }, null, 4) + "\n");
   bp.file("pack_icon.png", "PNG");
+  bp.dir("entities");
   bp.dir("texts").file("zh_CN.lang", "pack.name=演示");
   bp.file("debug.log", "x");
   bp.file("manifest.json.bak", "x");
   const rp = root.dir("DemoRP");
   rp.file("manifest.json", '{\n  "format_version": 2,\n  "header": { "name": "演示资源包", "uuid": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "version": [1, 2, 3] },\n  "modules": [ { "type": "resources", "uuid": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "version": [1, 2, 3] } ]\n}');
   rp.file("pack_icon.png", "PNG");
+  rp.dir("textures");
   const skin = root.dir("SkinPack");
   skin.file("manifest.json", '{"format_version":2,"header":{"name":"皮肤包","uuid":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","version":[0,0,1]},"modules":[{"type":"skin_pack","uuid":"dddddddd-dddd-4ddd-8ddd-dddddddddddd"}]}');
   root.file("readme.txt", "不会被打包");

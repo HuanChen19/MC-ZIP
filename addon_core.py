@@ -20,6 +20,7 @@ addon_core.py —— Minecraft 基岩版 Addon 核心处理逻辑
 
 from __future__ import annotations
 
+import errno
 import json
 import os
 import re
@@ -67,6 +68,7 @@ MODULE_TYPE_LABELS = {
 # 判定一个包属于 BP 还是 RP：看它 modules 里出现的 type
 BP_MODULE_TYPES = {"data", "script", "javascript"}
 RP_MODULE_TYPES = {"resources", "client_data", "interface"}
+REQUIRED_PACK_DIR_NAMES = {"entities", "textures", "shader"}
 
 PACK_CATEGORY_LABELS = {
     "bp": "行为包",
@@ -543,6 +545,13 @@ def collect_entries(
                 kept.append(name)
             dirnames[:] = kept
 
+            # 必需目录即使为空也必须出现在压缩包中.
+            if Path(dirpath) == pack_root:
+                for name in kept:
+                    if name in REQUIRED_PACK_DIR_NAMES:
+                        source = pack_root / name
+                        entries.append((source, source.relative_to(base).as_posix() + "/"))
+
             for name in sorted(filenames):
                 lowered = name.lower()
                 if lowered in SKIP_FILE_NAMES:
@@ -585,8 +594,12 @@ def _write_zip(entries: Sequence[Tuple[Path, str]], out_path: Path) -> int:
             info.compress_type = zipfile.ZIP_DEFLATED
             if stat is not None:
                 info.external_attr = (stat.st_mode & 0xFFFF) << 16
-            archive.writestr(info, source.read_bytes())
-            count += 1
+            if arcname.endswith("/"):
+                info.external_attr |= 0x10
+                archive.writestr(info, b"")
+            else:
+                archive.writestr(info, source.read_bytes())
+                count += 1
     return count
 
 
@@ -649,6 +662,53 @@ def resolve_mode(mode: str, root: Path, packs: Sequence[PackInfo]) -> str:
     return "mcaddon"
 
 
+def validate_pack_structure(packs, out_dir=None):
+    """校验所有待打包 BP/RP, 必须在改版本或写产物前调用."""
+    problems = []
+    output_path = Path(out_dir).resolve() if out_dir is not None else None
+    for pack in packs:
+        pack_path = pack.root.resolve()
+        directories = set()
+        for child in pack.root.iterdir():
+            if child.name not in REQUIRED_PACK_DIR_NAMES:
+                continue
+            if not child.is_dir() or child.is_symlink():
+                continue
+            child_path = child.resolve()
+            if child_path.parent != pack_path:
+                continue
+            if output_path is not None and (
+                child_path == output_path or output_path in child_path.parents
+            ):
+                continue
+            directories.add(child.name)
+        if pack.category in ("bp", "bp_rp") and "entities" not in directories:
+            problems.append("[{}] 行为包必须包含 entities 文件夹".format(pack.rel_name))
+        if pack.category in ("rp", "bp_rp") and not directories.intersection({"textures", "shader"}):
+            problems.append("[{}] 资源包必须包含 textures 或 shader 文件夹".format(pack.rel_name))
+    if problems:
+        raise ManifestError(
+            "打包目录校验失败:\n" + "\n".join(problems)
+            + "\n请确认这些文件夹直接位于包目录内, 且未用作输出目录."
+        )
+
+
+def cleanup_manifest_backups(packs, root=None):
+    """打包全部成功后清理 BP/RP 的备份, 返回清理日志."""
+    logs = []
+    included, _ = select_packs(packs, root=root)
+    for pack in included:
+        backup_path = pack.manifest_path.with_name(BACKUP_NAME)
+        try:
+            backup_path.unlink()
+        except OSError as exc:
+            if exc.errno != errno.ENOENT:
+                logs.append(["  [{}] 备份清理失败: {}".format(pack.rel_name, exc), "warn"])
+        else:
+            logs.append(["  [{}] 已清理备份 -> {}".format(pack.rel_name, BACKUP_NAME), "muted"])
+    return logs
+
+
 def build_package(
     root: Path,
     packs: Sequence[PackInfo],
@@ -672,7 +732,6 @@ def build_package(
     """
     root = Path(root)
     out_dir = Path(out_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
 
     included, excluded = select_packs(packs, only_bp_rp=only_bp_rp, root=root)
     if not included:
@@ -685,6 +744,8 @@ def build_package(
             )
         raise ManifestError("没有可打包的包。")
 
+    validate_pack_structure(included, out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
     pack_name = safe_filename(base_name or root.name, "addon")
     resolved_mode = resolve_mode(mode, root, included)
     selected_roots = [p.root for p in included]

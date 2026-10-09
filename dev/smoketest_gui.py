@@ -104,6 +104,8 @@ def main(out_dir: Path) -> int:
     assert after["MyAddon_BP"] == "0.0.2", after
     assert after["MyAddon_RP"] == "1.2.4", after
     assert after["MyAddon_Skin"] == "1.0.0", "皮肤包不应被改动"
+    assert not any((root / name / core.BACKUP_NAME).exists()
+                   for name in ("MyAddon_BP", "MyAddon_RP")), "打包成功后应清理备份"
 
     archives = list(out_dir.glob("*.mcaddon"))
     assert len(archives) == 1, archives

@@ -319,6 +319,7 @@ class BridgeApi:
         try:
             packs = core.load_addon(root)
             included, excluded = core.select_packs(packs, only_bp_rp=only_bp_rp, root=root)
+            core.validate_pack_structure(included, out_dir)
             old_versions = {str(p.root): p.display_version for p in included}
 
             logs.append([f"打包范围：{'仅 BP / RP' if only_bp_rp else '全部检测到的包'}（{len(included)} 个包）"])
@@ -339,6 +340,7 @@ class BridgeApi:
                 logs.append(["  已跳过版本号修改（本次打包不写入 manifest.json）", "muted"])
 
             result = core.build_package(root, packs, out_dir, mode=mode, only_bp_rp=only_bp_rp)
+            logs.extend(core.cleanup_manifest_backups(included, root=root))
 
             archives = []
             for archive in result.archives:

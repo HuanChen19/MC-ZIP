@@ -14,12 +14,15 @@ try {
     foreach ($pack in @(@{Name='BP';Type='data'}, @{Name='RP';Type='resources'}, @{Name='Skin';Type='skin_pack'})) {
         $packDirectory = Join-Path $addon $pack.Name
         New-Item -ItemType Directory -Path $packDirectory -Force | Out-Null
+        if ($pack.Name -eq 'BP') { New-Item -ItemType Directory -Path (Join-Path $packDirectory 'entities') | Out-Null }
+        if ($pack.Name -eq 'RP') { New-Item -ItemType Directory -Path (Join-Path $packDirectory 'shader') | Out-Null }
         $manifest = @{
             format_version=2
             header=@{name=$pack.Name; uuid=[guid]::NewGuid().ToString(); version=@(1,0,0)}
             modules=@(@{type=$pack.Type; uuid=[guid]::NewGuid().ToString(); version=@(1,0,0)})
         }
         $manifest | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $packDirectory 'manifest.json') -Encoding utf8
+        'old backup' | Set-Content -LiteralPath (Join-Path $packDirectory 'manifest.json.bak')
     }
     'excluded' | Set-Content -LiteralPath (Join-Path $addon 'readme.txt')
     $env:MC_ZIP_CONFIG = Join-Path $verifyDirectory 'config.json'
@@ -46,6 +49,17 @@ try {
     $imported = Invoke-RestMethod ($baseUrl + '/api/import_folder') -Method Post -ContentType 'application/json' -Body (@{folder=$addon}|ConvertTo-Json -Compress)
     if (-not $imported.ok -or @($imported.packs | Where-Object packed).Count -ne 2) { throw 'Incorrect BP/RP selection.' }
     $before = Get-Content -LiteralPath (Join-Path $addon 'BP/manifest.json') -Raw
+    $resourceBefore = Get-Content -LiteralPath (Join-Path $addon 'RP/manifest.json') -Raw
+    $shaderDirectory = Join-Path $addon 'RP/shader'
+    Remove-Item -LiteralPath $shaderDirectory
+    $invalid = Invoke-RestMethod ($baseUrl + '/api/do_package') -Method Post -ContentType 'application/json' -Body (@{pack_with_bump=$true;backup=$true}|ConvertTo-Json -Compress)
+    if ($invalid.ok -or ($invalid.logs | ConvertTo-Json -Depth 4) -notmatch 'shader') { throw 'Missing resource directory was accepted.' }
+    if ($before -ne (Get-Content -LiteralPath (Join-Path $addon 'BP/manifest.json') -Raw) -or
+        $resourceBefore -ne (Get-Content -LiteralPath (Join-Path $addon 'RP/manifest.json') -Raw)) { throw 'Validation failure changed a manifest.' }
+    foreach ($packName in @('BP', 'RP')) {
+        if ((Get-Content -LiteralPath (Join-Path $addon "$packName/manifest.json.bak") -Raw).Trim() -ne 'old backup') { throw 'Validation failure changed a backup.' }
+    }
+    New-Item -ItemType Directory -Path $shaderDirectory | Out-Null
     $packaged = Invoke-RestMethod ($baseUrl + '/api/do_package') -Method Post -ContentType 'application/json' -Body (@{pack_mode='mcaddon';pack_with_bump=$false;only_bp_rp=$false}|ConvertTo-Json -Compress)
     if (-not $packaged.ok) { throw 'Packaging failed.' }
     Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -53,9 +67,23 @@ try {
     try {
         $roots = @($archive.Entries | ForEach-Object { $_.FullName.Split('/')[0] } | Sort-Object -Unique)
         if (($roots -join ',') -ne 'BP,RP') { throw 'Unexpected archive contents.' }
+        foreach ($requiredDirectory in @('BP/entities/', 'RP/shader/')) {
+            if (-not $archive.GetEntry($requiredDirectory)) { throw "Missing archive directory: $requiredDirectory" }
+        }
     } finally { $archive.Dispose() }
     if ($before -ne (Get-Content -LiteralPath (Join-Path $addon 'BP/manifest.json') -Raw)) { throw 'Read-only packaging changed manifest.' }
-    Write-Host '[PASS] Packaged Ore UI, fonts, HTTP API and BP/RP-only archive.'
+    foreach ($packName in @('BP', 'RP')) {
+        if (Test-Path -LiteralPath (Join-Path $addon "$packName/manifest.json.bak")) { throw 'Read-only packaging left a stale backup.' }
+    }
+    $upgraded = Invoke-RestMethod ($baseUrl + '/api/do_package') -Method Post -ContentType 'application/json' -Body (@{pack_mode='mcpack';pack_with_bump=$true;backup=$true}|ConvertTo-Json -Compress)
+    if (-not $upgraded.ok -or @($upgraded.archives).Count -ne 2) { throw 'Packaging with version upgrade failed.' }
+    foreach ($packName in @('BP', 'RP')) {
+        if (Test-Path -LiteralPath (Join-Path $addon "$packName/manifest.json.bak")) { throw 'Version upgrade packaging left a backup.' }
+        $upgradedManifest = Get-Content -LiteralPath (Join-Path $addon "$packName/manifest.json") -Raw | ConvertFrom-Json
+        if (($upgradedManifest.header.version -join '.') -ne '1.0.1') { throw 'Incorrect upgraded manifest version.' }
+    }
+    if (-not (Test-Path -LiteralPath (Join-Path $addon 'Skin/manifest.json.bak'))) { throw 'Excluded skin backup was deleted.' }
+    Write-Host '[PASS] Packaged Ore UI, directory validation before changes, empty entities/shader folders, clean root and backup cleanup.'
 } finally {
     if ($launchedProcess) {
         $ownChildren = Get-CimInstance Win32_Process | Where-Object {
