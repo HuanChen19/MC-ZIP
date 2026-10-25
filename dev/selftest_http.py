@@ -55,6 +55,32 @@ def main() -> None:
                 imported = request("import_folder", {"folder": str(addon)})
                 assert imported["ok"] and len(imported["packs"]) == 3, imported
                 assert sum(row["packed"] for row in imported["packs"]) == 2
+                assert imported["recents"] == [{"path": str(addon), "exists": True}]
+                request("set_options", {"auto_load_last": False})
+                saved_output = base / "remembered-output"
+                api.config.set_output_dir(addon, saved_output)
+                api.config.save()
+                reopened = mczip_web.BridgeApi()
+                assert reopened.get_state()["recents"] == imported["recents"]
+                assert reopened.get_state()["lastFolder"] == str(addon)
+                assert reopened.get_state()["options"]["auto_load_last"] is False
+                dialog_starts = []
+                reopened._ask_directory = lambda initial: dialog_starts.append(initial)
+                assert reopened.browse_folder() == {"cancelled": True}
+                assert dialog_starts == [str(addon)]
+                assert reopened.import_folder(str(addon))["outputDir"] == str(saved_output)
+                assert len(reopened.get_state()["recents"]) == 1
+                missing = base / "deleted-addon"
+                reopened.config.remember_folder(missing)
+                reopened.config.save()
+                reopened = mczip_web.BridgeApi()
+                assert reopened.get_state()["recents"][0] == {"path": str(missing), "exists": False}
+                reopened._ask_directory = lambda initial: dialog_starts.append(initial)
+                assert reopened.browse_folder() == {"cancelled": True}
+                assert dialog_starts[-1] == str(base)
+                reopened.clear_recents()
+                assert mczip_web.BridgeApi().get_state()["recents"] == []
+                api.config.save()
                 viewer = request("get_manifest_text", {"index": 0})
                 assert json.loads(viewer["text"])["header"]["name"] == "BP", viewer
                 request("set_options", {"only_bp_rp": False})

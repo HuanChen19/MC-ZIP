@@ -51,6 +51,8 @@
             <div class="ore-field grow"><input type="text" id="pathDisplay" readonly aria-label="Addon 文件夹路径" placeholder="选择 Addon 根目录或单个 BP / RP"></div>
             <button class="ore-btn" id="browseBtn">浏览文件夹</button>
           </div>
+          <button class="ore-btn ore-dropdown full-width folder-history" id="folderHistoryBtn" data-menu-anchor aria-haspopup="menu" aria-expanded="false" disabled><span id="folderHistoryLabel">暂无历史文件夹</span><span class="dd-arrow" aria-hidden="true"></span></button>
+          <p class="hint">自动记住最近 10 个文件夹, 下次启动仍可从列表中选择。</p>
           <p class="hint">也可将文件夹拖入浏览器窗口。仅识别根目录下直属的 BP / RP 包。</p>
         </div>
         <div class="settings-section packs-section">

@@ -218,7 +218,18 @@ class BridgeApi:
     # 导入 / 扫描
     # ------------------------------------------------------------------ #
     def browse_folder(self) -> dict:
-        initial = str(self.addon_root.parent) if self.addon_root else str(Path.home())
+        initial = str(Path.home())
+        candidates = [self.addon_root, self.config.last_folder] + self.config.recent_folders
+        for candidate in candidates:
+            if not candidate:
+                continue
+            path = Path(candidate)
+            if path.is_dir():
+                initial = str(path)
+                break
+            if path.parent.is_dir():
+                initial = str(path.parent)
+                break
         chosen = self._ask_directory(initial)
         if not chosen:
             return {"cancelled": True}
@@ -242,7 +253,9 @@ class BridgeApi:
 
         self.config.remember_folder(path)
         self.config.save()
-        return self._scan_payload(announce=True)
+        result = self._scan_payload(announce=True)
+        result["recents"] = self.get_state()["recents"]
+        return result
 
     def rescan(self) -> dict:
         if not self.addon_root:

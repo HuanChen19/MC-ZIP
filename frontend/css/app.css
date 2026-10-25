@@ -43,6 +43,7 @@
 .section-heading h3 { font-size: 18px; font-weight: 700; }
 .setting-title { display: block; font-size: 18px; margin-bottom: 12px; }
 .path-row { display: flex; gap: 12px; align-items: stretch; }
+.folder-history { margin-top: 12px; }
 .grow { flex: 1; min-width: 0; }
 .hint { margin-top: 12px; color: var(--text-muted); font-size: 14px; line-height: 1.7; }
 .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 28px; min-height: 98px; padding: 24px 32px; border-bottom: 2px solid var(--edge); box-shadow: 0 2px var(--divider); }

@@ -113,6 +113,7 @@ const state = {
   packs: [],        // 统一行格式 [{name, packed, kind, version, uuid, modules, rel}]
   fsPacks: [],      // 网页模式的 PackInfo 对象（manifest 查看用）
   fsRoot: null, fsOut: null,
+  recents: [],
   busy: false,
 };
 
@@ -210,6 +211,7 @@ function applyScan(p) {
   if (p.cancelled) return;
   printLogs(p.logs);
   if (p.root) $("#pathDisplay").value = p.root;
+  if (p.recents) renderRecentFolders(p.recents);
   if (p.outputDir !== undefined) $("#outDisplay").value = p.outputDir || outPlaceholder();
   if (p.ok) {
     renderRows(p.packs, p.summary);
@@ -234,6 +236,7 @@ function applyState() {
   for (const sel of ["#browseBtn", "#recentBtn", "#rescanBtn", "#outChangeBtn", "#partDrop", "#modeDrop", "#uuidDrop", ".ore-check"]) {
     $$(sel).forEach(el => { el.disabled = state.busy; });
   }
+  $("#folderHistoryBtn").disabled = state.busy || !state.recents.length;
 }
 function setBusy(busy, text = "") {
   state.busy = busy;
@@ -352,9 +355,17 @@ async function onRestoreBackup() {
 /* ------------------------------------------------------------------ *
  * 最近打开菜单
  * ------------------------------------------------------------------ */
-async function onRecentMenu() {
+function renderRecentFolders(recents) {
+  state.recents = recents;
+  $("#folderHistoryLabel").textContent = recents.length
+    ? `此前选择的文件夹（${recents.length}）` : "暂无历史文件夹";
+  $("#folderHistoryBtn").disabled = state.busy || !recents.length;
+}
+
+async function onRecentMenu(anchor = $("#recentBtn")) {
   if (Bridge.available) {
     const st = await Bridge.call("get_state");
+    renderRecentFolders(st.recents);
     const items = [];
     if (!st.recents.length) items.push({ label: "（还没有记录）", disabled: true });
     for (const r of st.recents) {
@@ -379,14 +390,15 @@ async function onRecentMenu() {
         });
         if (!ok) return;
         await Bridge.call("clear_recents");
+        renderRecentFolders([]);
         log("已清除最近打开记录。", "warn");
         setStatus("已清除最近打开记录");
       },
     });
-    ORE.showMenu($("#recentBtn"), items);
+    ORE.showMenu(anchor, items);
     return;
   }
-  return webRecentMenu();
+  return webRecentMenu(anchor);
 }
 
 /* ------------------------------------------------------------------ *
@@ -564,6 +576,7 @@ async function webImportFolder(handle, { persist = true } = {}) {
     await idb.set("recents", list);
     await idb.set("handle:" + handle.name, handle);
     await idb.set("lastRoot", handle.name);
+    renderRecentFolders(list);
   }
   applyScan(await webScan(true));
 }
@@ -575,9 +588,11 @@ async function webBrowseFolder() {
     return;
   }
   let handle;
-  try { handle = await showDirectoryPicker({ mode: "readwrite" }); }
+  const last = state.recents[0];
+  const previous = state.fsRoot || (last ? await idb.get("handle:" + last) : null);
+  try { handle = await showDirectoryPicker({ mode: "readwrite", ...(previous ? { startIn: previous } : {}) }); }
   catch (e) { return; }
-  webImportFolder(handle);
+  await webImportFolder(handle);
 }
 
 async function webChooseOutputDir() {
@@ -721,8 +736,9 @@ async function webRestoreBackup() {
   setStatus("已从备份还原 manifest.json");
 }
 
-async function webRecentMenu() {
+async function webRecentMenu(anchor = $("#recentBtn")) {
   const list = (await idb.get("recents")) || [];
+  renderRecentFolders(list);
   const items = [];
   if (!list.length) items.push({ label: "（还没有记录）", disabled: true });
   for (const name of list) {
@@ -751,11 +767,12 @@ async function webRecentMenu() {
       if (!ok) return;
       await idb.set("recents", []);
       await idb.set("lastRoot", null);
+      renderRecentFolders([]);
       log("已清除最近打开记录。", "warn");
       setStatus("已清除最近打开记录");
     },
   });
-  ORE.showMenu($("#recentBtn"), items);
+  ORE.showMenu(anchor, items);
 }
 
 /* ------------------------------------------------------------------ *
@@ -876,7 +893,8 @@ async function boot() {
   applyState();
   $("#outDisplay").value = outPlaceholder();
   $("#browseBtn").addEventListener("click", onBrowse);
-  $("#recentBtn").addEventListener("click", onRecentMenu);
+  $("#recentBtn").addEventListener("click", () => onRecentMenu());
+  $("#folderHistoryBtn").addEventListener("click", () => onRecentMenu($("#folderHistoryBtn")));
   $("#rescanBtn").addEventListener("click", onRescan);
   $("#packBtn").addEventListener("click", onPackage);
   $("#uuidBtn").addEventListener("click", onRefreshUuid);
@@ -895,6 +913,7 @@ async function boot() {
     options = { ...OPTION_DEFAULTS, ...(st.options || {}) };
     options.only_bp_rp = true;
     bindOptionsRefresh();
+    renderRecentFolders(st.recents);
     if (st.recents.length) {
       log(`已记住 ${st.recents.length} 个最近打开的项目，可在「最近打开」里选择；最近一个：${st.recents[0].path}`, "muted");
       log("");
@@ -928,6 +947,7 @@ async function boot() {
   }
   try { await Promise.race([idb.open(), new Promise(r => setTimeout(r, 1500))]); } catch (e) { /* 无 IDB 环境 */ }
   const recents = (await idb.get("recents")) || [];
+  renderRecentFolders(recents);
   if (recents.length) {
     log(`已记住 ${recents.length} 个最近打开的项目，可在「最近打开」里选择；最近一个：${recents[0]}`, "muted");
     log("");
